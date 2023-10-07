@@ -23,21 +23,22 @@ async def update_products():
 
 async def deactivate_products():
     while True:
-        current_time = datetime.now()
-        target_time = current_time.replace(hour=0, minute=0, second=0, microsecond=0)
-        if current_time >= target_time:
-            target_time += timedelta(days=1)
-        delay = (target_time - current_time).total_seconds()
-        await asyncio.sleep(delay)
-
         logger = logging.getLogger('deactivate_products')
         product_list = await B24().get_product_list()
         for product in product_list:
-            time_now = datetime.now()
+            time_now = datetime.now()+timedelta(hours=2)
             active_to = datetime.strptime(product.get('dateActiveTo').split('+')[0], '%Y-%m-%dT%H:%M:%S')
             if time_now > active_to:
                 await B24().deactivate_product(product.get('id'))
                 logger.info(f'Deactivate product ID {product.get("id")}, {product.get("name")}')
+                deal_list = await B24().get_deal_list_by_stage('FINAL_INVOICE')
+                for deal_data in deal_list['result']:
+                    deal_productrow = await B24().get_product_by_deal_id(deal_data['ID'])
+                    try: deal_product_id = deal_productrow['result'][0]['PRODUCT_ID']
+                    except Exception: continue
+                    if deal_product_id == product.get('id'):
+                        await B24().update_deal_stage(int(deal_data['ID']), 'LOSE')
+                        logger.info(f'Lose deal ID {deal_data["ID"]}')
+                        await asyncio.sleep(2)
             logger.info('Deactivate products successfully')
-
-
+        await asyncio.sleep(1800)

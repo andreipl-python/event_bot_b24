@@ -74,9 +74,7 @@ async def select_event(callback: CallbackQuery, callback_data: SelectEventCallba
 
         message_keyboard = callback.message.reply_markup.inline_keyboard
         button_text = ''.join([i[0].text for i in message_keyboard
-                               if
-                               i[
-                                   0].callback_data == f'{SelectEventCallbackFactory.__prefix__}:{callback_data.product_id}'])
+                               if i[0].callback_data == f'{SelectEventCallbackFactory.__prefix__}:{callback_data.product_id}'])
         await B24().send_message_to_ol(user_id, full_name, f'[B]Нажата кнопка[/B] [I]{button_text}[/I]')
 
         await db.add_button_count(user_id, button_text)
@@ -173,10 +171,30 @@ async def pre_checkout_approve(pre_checkout_query: PreCheckoutQuery, bot: Bot):
 async def successful_payment(message: Message, state: FSMContext, bot: Bot):
     user_id, state_data = message.from_user.id, await state.get_data()
     payment_data = message.successful_payment
-    await message.answer('Оплачено успешно')
+    product_id = int(payment_data.invoice_payload.split(':')[0])
+    async with Database() as db:
+        product_data: List[Record] = await db.get_product_by_id(product_id)
+        product_name = product_data[0].get('name')
+    await message.answer(text=UserMessages().successful_payment(payment_data, product_name),
+                         reply_markup=await UserKb().return_to_start_kb())
+
     try: await bot.delete_message(user_id, state_data.get('msg_to_del'))
     except Exception: pass
+    try: await message.delete()
+    except Exception: pass
+
     await state.clear()
 
     async with Database() as db:
+        deal_id = int(payment_data.invoice_payload.split(':')[1])
+        deal_url = f'https://rudneva.bitrix24.pl/crm/deal/details/{deal_id}/'
+        currency = payment_data.currency
+        total_amount = payment_data.total_amount
+
         await db.add_payment(user_id, payment_data)
+        await db.set_paid_deal(deal_id)
+        await B24().update_deal_stage(deal_id, 'WON')
+        await B24().send_message_to_ol(user_id, 'Система',
+                                       f'Произведена оплата:\nСумма: [B]{total_amount/100} {currency}[/B]\n'
+                                       f'Сделка: [URL={deal_url}][B]ID {deal_id}[/B][/URL]')
+

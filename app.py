@@ -32,7 +32,7 @@ async def iml():
 
 @app.route("/msg", methods=['GET', 'POST'])
 async def send_msg():
-    bot = Bot(token='6516655899:AAFC13s7bdNwMBcCKNA1spIXGs3gCDR1Spo')
+    bot = Bot(token='6640746456:AAEmQ8J3ij_shPQ2oeIz5rn-nThM1mH1Fm8')
     data_bytes = request.data
     data_string = data_bytes.decode('utf-8')
     data_dict: dict = json.loads(data_string)
@@ -45,11 +45,10 @@ async def send_msg():
     if data_dict['data']['event'] == 'ONIMCOMMANDADD':
         # 14 TG-buttons stat
         if data_dict['data']['data']['COMMAND'].get('14'):
-            chat_id = 96
             user_id = data_dict['data']['data']['PARAMS']['CHAT_ENTITY_ID'].split('|')[-2]
             async with Database() as db:
                 buttons_stat_data: List[Record] = await db.get_button_stat(int(user_id))
-                await B24().send_message_to_ol(chat_id, 'Система',
+                await B24().send_message_to_ol(user_id, 'Система',
                                                       UserMessages().buttons_stat(buttons_stat_data))
                 return 'Success command'
 

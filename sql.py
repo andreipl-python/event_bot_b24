@@ -169,6 +169,10 @@ class Database:
         query = '''SELECT * FROM deals WHERE user_id = $1 AND product_id = $2 AND paid = FALSE;'''
         return await self.select(query, user_id, product_id)
 
+    async def set_paid_deal(self, deal_id: int) -> None:
+        query = '''UPDATE deals SET paid = True WHERE deal_id = $1;'''
+        return await self.update(query, deal_id)
+
     async def add_new_user(self, user_id: int, username: Optional[str], full_name: str) -> None:
         query = '''INSERT INTO users (user_id, username, full_name) VALUES ($1, $2, $3)'''
         return await self.update(query, user_id, username, full_name)

@@ -34,7 +34,7 @@ async def main():
     print(await create_sql_tables())
 
     dp.include_routers(
-        user.router, admin.router, error_handler.router
+        admin.router, user.router, error_handler.router
     )
 
     asyncio.create_task(system_agents.update_products())

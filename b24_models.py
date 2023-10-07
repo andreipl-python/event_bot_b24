@@ -1,4 +1,5 @@
 import json
+from pprint import pprint
 from typing import List
 
 import aiohttp
@@ -122,6 +123,17 @@ class B24:
         }
         return await self.post('crm.deal.productrows.set', data=data)
 
+    async def update_deal_stage(self, deal_id: int, new_stage: str) -> dict:
+        """Перемещает сделку на указанную стадию
+        Успешная сделка == WON, Отказ == LOSE, Выставлен счет == FINAL_INVOICE, В работе == NEW"""
+        data = {
+            'id': deal_id,
+            'fields': {
+                'STAGE_ID': new_stage
+            }
+        }
+        return await self.post('crm.deal.update', data=data)
+
     async def deactivate_product(self, product_id: int):
         """Деактивирует товар"""
         data = {
@@ -132,10 +144,22 @@ class B24:
         }
         return await self.post('crm.product.update', data=data)
 
+    async def get_product_by_deal_id(self, deal_id: int) -> dict:
+        """Получает товары сделки по её ID"""
+        data = {'id': deal_id}
+        return await self.post('crm.deal.productrows.get', data=data)
 
-# async def main():
-#     pprint(await B24().deactivate_product(2))
-#
-#
-# asyncio.run(main())
+    async def get_deal_list_by_stage(self, stage: str) -> dict:
+        """Получает все айдишники сделок в стадии
+        Успешная сделка == WON, Отказ == LOSE, Выставлен счет == FINAL_INVOICE, В работе == NEW"""
+        data = {
+            'filter': {'STAGE_ID': stage},
+            'select': ['ID']
+        }
+        return await self.post('crm.deal.list', data=data)
+
+async def main():
+    pprint(await B24().get_product_by_deal_id(200))
+
+asyncio.run(main())
 # # # # id чат бота 356
