@@ -24,14 +24,15 @@ async def create_sql_tables() -> str:
 
 async def main():
     dp = Dispatcher(storage=MemoryStorage())
-    bot = Bot(config.bot_token.get_secret_value(), parse_mode="HTML", disable_web_page_preview=True)
+    bot = Bot(config.bot_token.get_secret_value(), parse_mode="HTML")
 
     start_command = BotCommand(command='start', description='📅 Календарь событий')
     await bot.set_my_commands(commands=[start_command])
 
     logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(name)s - %(message)s")
 
-    print(await create_sql_tables())
+    logger = logging.getLogger('SQL')
+    logger.info(await create_sql_tables())
 
     dp.include_routers(
         admin.router, user.router, error_handler.router
@@ -39,6 +40,7 @@ async def main():
 
     asyncio.create_task(system_agents.update_products())
     asyncio.create_task(system_agents.deactivate_products())
+    asyncio.create_task(system_agents.reminder(bot))
     await dp.start_polling(bot, allowed_updates=dp.resolve_used_update_types(), close_bot_session=True)
 
 

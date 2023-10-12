@@ -52,7 +52,8 @@ class Database:
     async def create_table_users(self) -> None:
         query = '''CREATE TABLE IF NOT EXISTS users (id SERIAL PRIMARY KEY, 
         user_id BIGINT CONSTRAINT uk_users_user_id UNIQUE, 
-        username TEXT, full_name TEXT, b24_id INT, im_link_b24 TEXT, lead_id INT);'''
+        username TEXT, full_name TEXT, b24_id INT, im_link_b24 TEXT, lead_id INT, bot_blocked BOOLEAN DEFAULT FALSE, 
+        phone TEXT);'''
         return await self.update(query)
 
     async def create_table_deals(self) -> None:
@@ -71,7 +72,8 @@ class Database:
 
     async def create_table_buttons_stat(self) -> None:
         query = '''CREATE TABLE IF NOT EXISTS buttons_stat (id SERIAL PRIMARY KEY, user_id BIGINT, button_name TEXT, 
-        count INT, CONSTRAINT unique_user_button UNIQUE (user_id, button_name));'''
+        count INT, last_press TIMESTAMP DEFAULT '2023-01-01 00:00:00', 
+        CONSTRAINT unique_user_button UNIQUE (user_id, button_name));'''
         return await self.update(query)
 
     async def create_table_products(self) -> None:
@@ -81,10 +83,16 @@ class Database:
 
     async def create_table_payments(self) -> None:
         query = '''CREATE TABLE IF NOT EXISTS payments (id SERIAL PRIMARY KEY, user_id BIGINT, currency TEXT, 
-        total_amount INT, product_id INT, deal_id INT, telegram_payment_charge_id TEXT, provider_payment_charge_id TEXT);'''
+        total_amount INT, product_id INT, deal_id INT, telegram_payment_charge_id TEXT, provider_payment_charge_id TEXT, 
+        create_time TIMESTAMP);'''
+        return await self.update(query)
+
+    async def create_table_newsletters(self) -> None:
+        query = '''CREATE TABLE IF NOT EXISTS newsletters (user_id BIGINT PRIMARY KEY, reminder TIMESTAMP);'''
         return await self.update(query)
 
     async def add_payment(self, user_id: int, payment_data: SuccessfulPayment) -> None:
+        time_now = datetime.now()
         currency = payment_data.currency
         total_amount = payment_data.total_amount
         product_id = int(payment_data.invoice_payload.split(':')[0])
@@ -92,9 +100,9 @@ class Database:
         telegram_payment_charge_id = payment_data.telegram_payment_charge_id
         provider_payment_charge_id = payment_data.provider_payment_charge_id
         query = '''INSERT INTO payments (user_id, currency, total_amount, product_id, deal_id, 
-        telegram_payment_charge_id, provider_payment_charge_id) VALUES ($1, $2, $3, $4, $5, $6, $7);'''
+        telegram_payment_charge_id, provider_payment_charge_id, create_time) VALUES ($1, $2, $3, $4, $5, $6, $7, $8);'''
         return await self.update(query, user_id, currency, total_amount, product_id, deal_id,
-                                 telegram_payment_charge_id, provider_payment_charge_id)
+                                 telegram_payment_charge_id, provider_payment_charge_id, time_now)
 
     async def update_table_products(self, products_list: List[dict]) -> None:
         truncate_query = '''TRUNCATE TABLE products;'''
@@ -122,10 +130,11 @@ class Database:
         return await self.select(query, product_id)
 
     async def add_button_count(self, user_id: int, button_name: str) -> None:
-        query = '''INSERT INTO buttons_stat (user_id, button_name, count) VALUES ($1, $2, 1) 
-        ON CONFLICT (user_id, button_name) DO UPDATE SET count = buttons_stat.count + 1 
+        time_now = datetime.now()
+        query = '''INSERT INTO buttons_stat (user_id, button_name, count, last_press) VALUES ($1, $2, 1, $3) 
+        ON CONFLICT (user_id, button_name) DO UPDATE SET count = buttons_stat.count + 1, last_press = $3 
         WHERE buttons_stat.user_id = $1 AND buttons_stat.button_name = $2;'''
-        return await self.update(query, user_id, button_name)
+        return await self.update(query, user_id, button_name, time_now)
 
     async def get_button_stat(self, user_id: int) -> List[Record]:
         query = '''SELECT * FROM buttons_stat WHERE user_id = $1 ORDER BY count DESC;'''
@@ -152,6 +161,14 @@ class Database:
         query = '''UPDATE users SET lead_id = $2 WHERE user_id = $1;'''
         return await self.update(query, user_id, lead_id)
 
+    async def set_bot_blocked(self, user_id: int, bot_blocked: bool) -> None:
+        query = '''UPDATE users SET bot_blocked = $2 WHERE user_id = $1;'''
+        return await self.update(query, user_id, bot_blocked)
+
+    async def set_phone(self, user_id: int, phone: str) -> None:
+        query = '''UPDATE users SET phone = $2 WHERE user_id = $1;'''
+        return await self.update(query, user_id, phone)
+
     async def is_user_exist(self, user_id: int) -> bool:
         query = '''SELECT * FROM users WHERE user_id = $1;'''
         return bool(await self.select(query, user_id))
@@ -169,7 +186,16 @@ class Database:
         query = '''SELECT * FROM deals WHERE user_id = $1 AND product_id = $2 AND paid = FALSE;'''
         return await self.select(query, user_id, product_id)
 
+    async def get_user_payed_deal_by_product_id(self, user_id: int, product_id: int) -> List[Record]:
+        query = '''SELECT * FROM deals WHERE user_id = $1 AND product_id = $2 AND paid = TRUE;'''
+        return await self.select(query, user_id, product_id)
+
+    async def get_user_deal_by_deal_id(self, deal_id: int) -> List[Record]:
+        query = '''SELECT * FROM deals WHERE deal_id = $1;'''
+        return await self.select(query, deal_id)
+
     async def set_paid_deal(self, deal_id: int) -> None:
+        """Отмечает сделку оплаченной"""
         query = '''UPDATE deals SET paid = True WHERE deal_id = $1;'''
         return await self.update(query, deal_id)
 
@@ -177,8 +203,31 @@ class Database:
         query = '''INSERT INTO users (user_id, username, full_name) VALUES ($1, $2, $3)'''
         return await self.update(query, user_id, username, full_name)
 
-    async def get_user_data(self, user_id: int) -> List[asyncpg.Record]:
+    async def get_user_data(self, user_id: int) -> List[Record]:
         query = '''SELECT * FROM users WHERE user_id = $1;'''
         return await self.select(query, user_id)
 
+    async def get_user_list_for_reminder(self) -> List[Record]:
+        query = '''SELECT DISTINCT bs.user_id
+                    FROM buttons_stat bs
+                    WHERE bs.button_name ILIKE '%Купить%'
+                        AND NOT EXISTS (
+                            SELECT 1
+                            FROM payments p
+                            WHERE p.user_id = bs.user_id
+                                AND p.create_time >= CURRENT_DATE - INTERVAL '1 month'
+                        )
+                        AND bs.last_press <= CURRENT_TIMESTAMP - INTERVAL '1 day'
+                        AND NOT EXISTS (
+                            SELECT 1
+                            FROM newsletters n
+                            WHERE n.user_id = bs.user_id
+                                AND n.reminder >= CURRENT_DATE - INTERVAL '1 month'
+                        );'''
+        return await self.select(query)
 
+    async def add_reminder_time(self, user_id: int) -> None:
+        time_now = datetime.now()
+        query = '''INSERT INTO newsletters (user_id, reminder) VALUES ($1, $2) 
+        ON CONFLICT (user_id) DO UPDATE SET reminder = $2;'''
+        return await self.update(query, user_id, time_now)

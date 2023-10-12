@@ -1,16 +1,18 @@
+from pprint import pprint
 from typing import List
 
 from aiogram import Router, F, Bot
 from aiogram.filters import Command
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import StatesGroup, State
-from aiogram.types import Message, CallbackQuery, LabeledPrice, PreCheckoutQuery
+from aiogram.types import Message, CallbackQuery, LabeledPrice, PreCheckoutQuery, Contact, ReplyKeyboardRemove
 from asyncpg import Record
 
 from sql import Database
 from b24_models import B24
 from config_reader import config
-from keyboards.user_keyboards import UserKb, SelectEventCallbackFactory, BuyEventCallbackFactory
+from keyboards.user_keyboards import (UserKb, UserReplyKb, SelectEventCallbackFactory, BuyEventCallbackFactory,
+                                      BuyEventPayMethodFactory)
 from messages.user_messages import UserMessages
 
 router = Router()
@@ -27,6 +29,8 @@ async def start(message: Message):
     async with Database() as db:
         start_message = await db.get_start_message()
         await message.answer(text=start_message, reply_markup=await UserKb().get_products_kb(user_id))
+        try: await message.delete()
+        except Exception: pass
 
         is_user_exists = await db.is_user_exist(user_id)
         if not is_user_exists:
@@ -35,10 +39,51 @@ async def start(message: Message):
     await B24().send_message_to_ol(user_id, full_name, f'[B]Нажата кнопка[/B] [I]START[/I]')
 
 
+@router.message(F.contact)
+async def contact(message: Message, state: FSMContext, bot: Bot):
+    user_id, state_data = message.from_user.id, await state.get_data()
+    await message.answer(text=UserMessages().successful_contact, reply_markup=ReplyKeyboardRemove())
+    try: await message.delete()
+    except: pass
+    try: await bot.delete_message(user_id, state_data.get('msg_to_del'))
+    except: pass
+    await state.clear()
+
+    async with Database() as db:
+        start_message = await db.get_start_message()
+    await message.answer(text=start_message, reply_markup=await UserKb().get_products_kb(user_id))
+
+    async with Database() as db:
+        await db.set_phone(user_id, message.contact.phone_number)
+        user_data: List[Record] = await db.get_user_data(user_id)
+    await B24().update_contact_phone(user_data[0].get('b24_id'), message.contact.phone_number)
+    await B24().add_phone_task(user_data[0].get('b24_id'), 1)
+    await B24().send_message_to_ol(user_id, 'Система',
+                                   '[B]Пользователь запросил обратный звонок. Поставлена задача.[/B]')
+
+
+@router.message(Command('call_ask'))
+async def ask_phone(message: Message, state: FSMContext):
+    await state.set_state(User.state)
+    msg_to_del = await message.answer(text=UserMessages().ask_phone, reply_markup=UserReplyKb().ask_contact_kb())
+    await state.update_data(msg_to_del=msg_to_del.message_id)
+    try: await message.delete()
+    except: pass
+
+
 @router.message(F.text)
 async def some_message(message: Message):
     user_id, full_name = message.from_user.id, message.from_user.full_name
     await B24().send_message_to_ol(user_id, full_name, f'{message.text}')
+
+
+@router.callback_query(F.data == 'call_ask')
+async def ask_phone(callback: CallbackQuery, state: FSMContext):
+    await state.set_state(User.state)
+    msg_to_del = await callback.message.answer(text=UserMessages().ask_phone, reply_markup=UserReplyKb().ask_contact_kb())
+    await state.update_data(msg_to_del=msg_to_del.message_id)
+    try: await callback.message.delete()
+    except: pass
 
 
 @router.callback_query(F.data == 'start')
@@ -96,8 +141,12 @@ async def select_event(callback: CallbackQuery, callback_data: SelectEventCallba
 
 
 @router.callback_query(BuyEventCallbackFactory.filter())
-async def buy_event(callback: CallbackQuery, callback_data: BuyEventCallbackFactory, bot: Bot, state: FSMContext):
-    await callback.answer()
+async def buy_event(callback: CallbackQuery, callback_data: BuyEventCallbackFactory, state: FSMContext, bot: Bot):
+    state_data = await state.get_data()
+    if state_data.get('msg_to_del'):
+        try: await bot.delete_message(callback.message.chat.id, state_data.get('msg_to_del'))
+        except Exception: pass
+        await state.clear()
     user_id, full_name = callback.from_user.id, callback.from_user.full_name
     product_id = callback_data.product_id
     async with Database() as db:
@@ -110,9 +159,6 @@ async def buy_event(callback: CallbackQuery, callback_data: BuyEventCallbackFact
             return
 
         event_name: str = event_data[0].get('name')
-
-        # регистрирую нажатие кнопки Купить
-        await db.add_button_count(user_id, f'Купить {event_name}')
 
         # получаю сделки по пользователю, данные по пользователю
         deals_data: List[Record] = await db.get_user_deals(user_id)
@@ -137,13 +183,8 @@ async def buy_event(callback: CallbackQuery, callback_data: BuyEventCallbackFact
             deal_data = await B24().add_new_deal(full_name, event_name, contact_id)
             deal_id: int = deal_data.get('result')
 
-        invoice = await bot.send_invoice(
-            title=event_name, description=' ', payload=f'{product_id}:{deal_id}',
-            provider_token=config.stripe_test_token.get_secret_value(), currency='PLN',
-            prices=[LabeledPrice(label='1 шт', amount=int(product_price * 100))], chat_id=user_id
-        )
-        await state.set_state(User.state)
-        await state.update_data(msg_to_del=invoice.message_id)
+        await callback.message.answer(text="Выберите удобный для Вас способ оплаты:",
+                                      reply_markup=await UserKb().payment_methods_kb(product_id, deal_id))
         try: await callback.message.delete()
         except Exception: pass
 
@@ -154,16 +195,66 @@ async def buy_event(callback: CallbackQuery, callback_data: BuyEventCallbackFact
             deal_url = f'https://rudneva.bitrix24.pl/crm/deal/details/{deal_id}/'
             await B24().send_message_to_ol(user_id, 'Система',
                                            f'[URL={deal_url}][B]Создана сделка на сумму {product_price} zł[/B][/URL]')
+        # регистрирую нажатие кнопки Купить
+        await db.add_button_count(user_id, f'Купить {event_name}')
+
+
+@router.callback_query(BuyEventPayMethodFactory.filter())
+async def payment_by_method(callback: CallbackQuery, callback_data: BuyEventPayMethodFactory, bot: Bot, state: FSMContext):
+    user_id = callback.from_user.id
+
+    async with Database() as db:
+        event_data: List[Record] = await db.get_product_by_id(callback_data.product_id)
+        if not event_data:
+            await callback.message.answer(text=UserMessages().not_active_event,
+                                                    reply_markup=await UserKb().return_to_start_kb())
+            try: await callback.message.delete()
+            except Exception: pass
+            return
+
+        event_name: str = event_data[0].get('name')
+        product_price: float = event_data[0].get('price')
+
+    if callback_data.method == 'card':
+        invoice = await bot.send_invoice(
+            title=event_name, description='Оплата участия картой Visa/MasterCard',
+            payload=f'{callback_data.product_id}:{callback_data.deal_id}',
+            provider_token=config.stripe_test_token.get_secret_value(), currency='PLN',
+            prices=[LabeledPrice(label='1 шт', amount=int(product_price * 100))], chat_id=user_id
+        )
+        return_msg = await callback.message.answer(text='Нажмите на кнопку ниже, чтобы выбрать другой способ оплаты 👇',
+                                                   reply_markup=await UserKb().return_to_payment_methods(
+                                                    product_id=callback_data.product_id, with_calendar=False))
+        await state.set_state(User.state)
+        await state.update_data(msg_to_del=invoice.message_id, cb_to_del=return_msg.message_id)
+        try: await callback.message.delete()
+        except Exception: pass
+
+    if callback_data.method in ['blik', 'bank']:
+        await callback.message.answer(
+            text=UserMessages().other_payment(callback_data.deal_id, event_name, product_price, callback_data.method),
+            reply_markup=await UserKb().return_to_payment_methods(product_id=callback_data.product_id, with_calendar=True))
+        try: await callback.message.delete()
+        except Exception: pass
 
 
 @router.pre_checkout_query()
 async def pre_checkout_approve(pre_checkout_query: PreCheckoutQuery, bot: Bot):
     product_id = pre_checkout_query.invoice_payload.split(':')[0]
+    deal_id = pre_checkout_query.invoice_payload.split(':')[1]
+
     async with Database() as db:
-        event_data = await db.get_product_by_id(int(product_id))
+        event_data: List[Record] = await db.get_product_by_id(int(product_id))
+        deal_data: List[Record] = await db.get_user_deal_by_deal_id(int(deal_id))
+
     if not event_data:
         return await bot.answer_pre_checkout_query(pre_checkout_query.id, ok=False,
                                                    error_message='Мероприятие уже прошло, либо недоступно для покупки')
+    if deal_data[0].get('paid'):
+        return await bot.answer_pre_checkout_query(pre_checkout_query.id, ok=False,
+                                                   error_message='Этот заказ уже оплачен вами другим методом оплаты. '
+                                                                 'Для повторной покупки сформируйте новый заказ.')
+
     return await bot.answer_pre_checkout_query(pre_checkout_query.id, ok=True)
 
 
@@ -179,6 +270,8 @@ async def successful_payment(message: Message, state: FSMContext, bot: Bot):
                          reply_markup=await UserKb().return_to_start_kb())
 
     try: await bot.delete_message(user_id, state_data.get('msg_to_del'))
+    except Exception: pass
+    try: await bot.delete_message(user_id, state_data.get('cb_to_del'))
     except Exception: pass
     try: await message.delete()
     except Exception: pass
@@ -197,4 +290,7 @@ async def successful_payment(message: Message, state: FSMContext, bot: Bot):
         await B24().send_message_to_ol(user_id, 'Система',
                                        f'Произведена оплата:\nСумма: [B]{total_amount/100} {currency}[/B]\n'
                                        f'Сделка: [URL={deal_url}][B]ID {deal_id}[/B][/URL]')
+
+
+
 

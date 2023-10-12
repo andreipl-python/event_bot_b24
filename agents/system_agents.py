@@ -1,8 +1,14 @@
 import asyncio
 import logging
 from datetime import datetime, timedelta
+from typing import List
+
+from aiogram import Bot
+from asyncpg import Record
 
 from b24_models import B24
+from messages.user_messages import UserMessages
+from keyboards.user_keyboards import UserKb
 from sql import Database
 
 logging.basicConfig(
@@ -40,5 +46,29 @@ async def deactivate_products():
                         await B24().update_deal_stage(int(deal_data['ID']), 'LOSE')
                         logger.info(f'Lose deal ID {deal_data["ID"]}')
                         await asyncio.sleep(2)
-            logger.info('Deactivate products successfully')
+        logger.info('Deactivate products successfully')
         await asyncio.sleep(1800)
+
+
+async def reminder(bot: Bot):
+    logger = logging.getLogger('reminder')
+    while True:
+        async with Database() as db:
+            user_list: List[Record] = await db.get_user_list_for_reminder()
+            for user in user_list:
+                try:
+                    await bot.send_message(chat_id=user.get('user_id'), text=UserMessages().reminder,
+                                            reply_markup=await UserKb().reminder())
+                    await db.add_reminder_time(user.get('user_id'))
+                    await B24().send_message_to_ol(user.get('user_id'), 'Система',
+                                                   'Отправлено автоматическое напоминание стимуляция')
+                    logger.info(f'Reminder sent to UserId {user.get("user_id")}')
+                except Exception:
+                    await db.add_reminder_time(user.get('user_id'))
+                    await db.set_bot_blocked(user.get('user_id'), True)
+                    await B24().send_message_to_ol(user.get('user_id'), 'Система',
+                                                   '[B]Напоминание не доставлено, вероятно пользователь заблокировал бота.[/B]')
+        logger.info(f'Sent {len(user_list)} reminders.')
+        await asyncio.sleep(3600)
+
+

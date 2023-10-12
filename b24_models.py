@@ -1,3 +1,4 @@
+import datetime
 import json
 from pprint import pprint
 from typing import List
@@ -56,6 +57,24 @@ class B24:
                 }
         response_data = await self.post('crm.contact.add', data=data)
         return response_data['result']
+
+    async def update_contact_phone(self, user_id: int, phone: str) -> dict:
+        data = {
+            'id': user_id,
+            'fields':
+                {
+                    'HAS_PHONE': 'Y',
+                    'PHONE':
+                        [
+                            {
+                                'VALUE_TYPE': 'WORK',
+                                'VALUE': phone,
+                                'TYPE_ID': 'PHONE'
+                            }
+                        ]
+                }
+        }
+        return await self.post('crm.contact.update', data=data)
 
     async def find_contact_by_tg_id(self, user_id: int) -> str | None:
         """Ищет контакт в Б24 по TelegramID, возвращает ID контакта или None"""
@@ -158,8 +177,32 @@ class B24:
         }
         return await self.post('crm.deal.list', data=data)
 
-async def main():
-    pprint(await B24().get_product_by_deal_id(200))
+    async def add_phone_task(self, user_id: int, responsible_id: int) -> dict:
+        """Ставит задачу и возвращает её ID"""
+        deadline = datetime.datetime.now()+datetime.timedelta(hours=24)
+        formatted_time = deadline.strftime('%Y-%m-%dT%H:%M:%S')
+        data = {
+            'fields':
+                {
+                    'ALLOW_CHANGE_DEADLINE': 'N',
+                    'DEADLINE': formatted_time,
+                    'RESPONSIBLE_ID': responsible_id,
+                    'TITLE': 'Позвонить клиенту',
+                    'UF_CRM_TASK': [f'C_{user_id}'],
+                }
+        }
+        result = await self.post('tasks.task.add', data=data)
+        task_id = result['result']['task']['id']
+        task_url = f"https://rudneva.bitrix24.pl/company/personal/user/{responsible_id}/tasks/task/view/{task_id}/"
+        data = {
+            'USER_ID': 1,
+            'MESSAGE': f'Вам поставлена [URL={task_url}]задача[/URL]. Позвонить клиенту.'
+        }
+        return await self.post('im.notify.system.add', data=data)
 
-asyncio.run(main())
-# # # # id чат бота 356
+# async def main():
+#
+#     pprint(await B24().post('im.notify.system.add', data=data))
+#
+# asyncio.run(main())
+# # # id чат бота 356
