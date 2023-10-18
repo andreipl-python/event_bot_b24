@@ -1,11 +1,16 @@
 import datetime
 import json
 from pprint import pprint
-from typing import List
+from typing import List, Union
 
 import aiohttp
 import asyncio
+
+from aiogram.types import SuccessfulPayment
+from aiohttp import ContentTypeError
+
 from config_reader import config
+from messages.user_messages import UserMessages
 
 
 class B24:
@@ -85,16 +90,19 @@ class B24:
         else:
             return None
 
-    async def send_message_to_ol(self, user_id: int, full_name: str, message: str) -> dict:
+    async def send_message_to_ol(self, user_id: int, full_name: str, message: Union[str | dict]) -> dict:
         """Отправляет мессагу в ОЛ Б24"""
         data = {
             'chat_id': user_id,
             'full_name': full_name,
-            'message': message
+            'msg': message
         }
         async with aiohttp.ClientSession() as session:
             async with session.post(f'{self.connector_url}test.php', data=data) as response:
-                response_data = await response.json()
+                try:
+                    response_data = await response.json()
+                except ContentTypeError:
+                    response_data = await response.text()
         return response_data
 
     async def update_lead_status(self, lead_id: int, new_status: str) -> dict:
@@ -179,7 +187,7 @@ class B24:
 
     async def add_phone_task(self, user_id: int, responsible_id: int) -> dict:
         """Ставит задачу и возвращает её ID"""
-        deadline = datetime.datetime.now()+datetime.timedelta(hours=24)
+        deadline = datetime.datetime.now() + datetime.timedelta(hours=24)
         formatted_time = deadline.strftime('%Y-%m-%dT%H:%M:%S')
         data = {
             'fields':
@@ -200,9 +208,21 @@ class B24:
         }
         return await self.post('im.notify.system.add', data=data)
 
+
 # async def main():
+#     payment_data = SuccessfulPayment(currency='PLN', total_amount=10000, invoice_payload='111:268',
+#                                      telegram_payment_charge_id='fdfdsfdsfdf',
+#                                      provider_payment_charge_id='1411241212124')
+#     # msg_str = UserMessages().successful_payment(payment_data=payment_data, product_name='testProduct')
+#     # data = {
+#     #     'ATTACH': {
+#     #         'BLOCKS': [
+#     #             {'MESSAGE': msg_str}],
+#     #     }
+#     # }
+#     pprint(await B24().send_message_to_ol(user_id=6008255128, full_name='test',
+#                                           message='test'))
 #
-#     pprint(await B24().post('im.notify.system.add', data=data))
 #
 # asyncio.run(main())
 # # # id чат бота 356

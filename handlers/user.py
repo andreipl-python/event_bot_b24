@@ -1,11 +1,11 @@
-from pprint import pprint
+import asyncio
 from typing import List
 
 from aiogram import Router, F, Bot
 from aiogram.filters import Command
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import StatesGroup, State
-from aiogram.types import Message, CallbackQuery, LabeledPrice, PreCheckoutQuery, Contact, ReplyKeyboardRemove
+from aiogram.types import Message, CallbackQuery, LabeledPrice, PreCheckoutQuery, ReplyKeyboardRemove
 from asyncpg import Record
 
 from sql import Database
@@ -62,13 +62,33 @@ async def contact(message: Message, state: FSMContext, bot: Bot):
                                    '[B]Пользователь запросил обратный звонок. Поставлена задача.[/B]')
 
 
-@router.message(Command('call_ask'))
-async def ask_phone(message: Message, state: FSMContext):
-    await state.set_state(User.state)
-    msg_to_del = await message.answer(text=UserMessages().ask_phone, reply_markup=UserReplyKb().ask_contact_kb())
-    await state.update_data(msg_to_del=msg_to_del.message_id)
-    try: await message.delete()
-    except: pass
+@router.message(Command('send_1'))
+async def send_custom(message: Message, bot: Bot):
+    async with Database() as db:
+        users_list: List[Record] = await db.get_all_users()
+        success_counter, fail_counter = 0, 0
+        for user in users_list:
+            user_id = user.get('user_id')
+            try:
+                await bot.send_photo(chat_id=user_id,
+                                     photo='AgACAgIAAxkBAAICtmUuuJE8EAxNuPQd2qhFwidt-zQXAAK2zjEb9lJ4SeZb9L7dmm0XAQADAgADeQADMAQ',
+                                     caption=UserMessages().custom_send(), reply_markup=await UserKb().event_kb(268))
+                await B24().send_message_to_ol(user_id, 'Система',
+                                               'Отправлено сообщение-рассылка. Бизнес-ужин 19.10 четверг в 18.00.')
+                success_counter += 1
+                await asyncio.sleep(0.5)
+            except:
+                await db.set_bot_blocked(user_id, True)
+                fail_counter += 1
+
+        await bot.send_message(chat_id=6008255128, text=f"<b>Итоги рассылки:</b>\n\nВсего адресатов: {len(users_list)}\n"
+                                                        f"Доставлено успешно: {success_counter}\n"
+                                                        f"Не доставлено (вероятно заблокировали бота): {fail_counter}")
+
+
+@router.message(F.photo)
+async def get_photo(message: Message):
+    await message.answer(message.photo[-1].file_id)
 
 
 @router.message(F.text)
@@ -290,6 +310,9 @@ async def successful_payment(message: Message, state: FSMContext, bot: Bot):
         await B24().send_message_to_ol(user_id, 'Система',
                                        f'Произведена оплата:\nСумма: [B]{total_amount/100} {currency}[/B]\n'
                                        f'Сделка: [URL={deal_url}][B]ID {deal_id}[/B][/URL]')
+        await B24().send_message_to_ol(user_id, 'Система',
+                                       f'Пользователю отправлено подтверждение:\n\n'
+                                       f'{UserMessages().successful_payment(payment_data, product_name)}')
 
 
 

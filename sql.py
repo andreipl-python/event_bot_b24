@@ -226,6 +226,10 @@ class Database:
                         );'''
         return await self.select(query)
 
+    async def get_all_users(self) -> List[Record]:
+        query = '''SELECT * FROM users;'''
+        return await self.select(query)
+
     async def add_reminder_time(self, user_id: int) -> None:
         time_now = datetime.now()
         query = '''INSERT INTO newsletters (user_id, reminder) VALUES ($1, $2) 

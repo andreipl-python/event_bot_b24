@@ -2,7 +2,7 @@ import json
 from typing import List
 
 from asyncpg import Record
-from flask import Flask, request
+from flask import Flask, request, make_response
 from aiogram import Bot
 from sql import Database
 from b24_models import B24
@@ -64,5 +64,21 @@ async def send_msg():
         await bot.session.close()
     return "End of msg function"
 
+
+@app.route("/metamsg", methods=['GET', 'POST'])
+async def messaging_meta_webhook():
+    print(request.args)
+    print(request.data)
+    return 'OK', 200
+
+
+@app.route("/insta", methods=['GET', 'POST'])
+async def messaging_insta_webhook():
+    print(request.args)
+    print(request.data)
+    return 'OK', 200
+
 if __name__ == "__main__":
     app.run(debug=True, host="0.0.0.0", port=9999)
+
+# EAAL6gCLc914BO13S2YcEL2n5mdIaJxKPfereWsQmvah3qihMLQqvu14wNH7ZBy5JZAc4TBZBPLZCveK9maDWQYWLknRQpamHWbIiyx8hdaZCp5TlSGmi00VZB0mfUeXjLor9c3jLhjrEjBZCSZCPdRxoLCZBpwvaeryCwj6PNgUMbtbWR4ZCDbuodOZCUdT9V84alW6
