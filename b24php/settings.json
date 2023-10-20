@@ -1,0 +1,16 @@
+{
+  "access_token": "58a82f65006727ed006727df0000000c000007d47918bf30e130edd3faff371e022e3e",
+  "expires": 1697622104,
+  "expires_in": 3600,
+  "scope": "app",
+  "domain": "oauth.bitrix.info",
+  "server_endpoint": "https:\/\/oauth.bitrix.info\/rest\/",
+  "status": "L",
+  "client_endpoint": "https:\/\/rudneva.bitrix24.pl\/rest\/",
+  "member_id": "b22fa3787f281318a5946a6bacc05d60",
+  "user_id": 12,
+  "refresh_token": "48275765006727ed006727df0000000c0000078a770fcf96862942787c6acab8137fb2",
+  "application_token": "3955e605bbc99df8dce99bc7a87211dd",
+  "C_REST_CLIENT_ID": "local.6511cdfe854bc7.10434790",
+  "C_REST_CLIENT_SECRET": "c0w7e97pl2vl2YI23zcdSphkeX3u6i83145Hnq2wd9vg4IfveK"
+}

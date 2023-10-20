@@ -106,10 +106,18 @@ async def set_new_payment(callback: CallbackQuery, callback_data: ApprovePayment
         await B24().send_message_to_ol(deal_data[0].get('user_id'), 'Система',
                                        f'Зарегистрирована оплата:\nСумма: [B]{product_data[0].get("price")} PLN[/B]\n'
                                        f'Сделка: [URL={deal_url}][B]ID {deal_id}[/B][/URL]')
+    try:
+        await bot.send_message(chat_id=deal_data[0].get('user_id'),
+                               text=UserMessages().successful_payment(payment_data, product_data[0].get('name')),
+                               reply_markup=await UserKb().return_to_start_kb())
+        await B24().send_message_to_ol(deal_data[0].get('user_id'), 'Система',
+                                       f'Пользователю отправлено подтверждение:\n\n'
+                                       f'{UserMessages().successful_payment(payment_data, product_data[0].get("name"))}')
+    except:
+        await B24().send_message_to_ol(deal_data[0].get('user_id'), 'Система',
+                                       f'Пользователю не удалось отправить подтверждение оплаты. '
+                                       f'Вероятно бот заблокирован.')
 
-    await bot.send_message(chat_id=deal_data[0].get('user_id'),
-                           text=UserMessages().successful_payment(payment_data, product_data[0].get('name')),
-                           reply_markup=await UserKb().return_to_start_kb())
     await callback.message.edit_text(text='Оплата успешно зарегистрирована!',
                                      reply_markup=AdminPanelKb().back_to_admin_panel())
 

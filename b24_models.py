@@ -18,13 +18,6 @@ class B24:
         self.url = config.b24_url.get_secret_value()
         self.connector_url = config.connector_url.get_secret_value()
 
-    async def get(self, method: str, connector: bool = False) -> dict:
-        url = self.url if not connector else self.connector_url
-        async with aiohttp.ClientSession() as session:
-            async with session.get(f'{url}{method}') as response:
-                response_text = await response.text(encoding='utf-8')
-                return json.loads(response_text)
-
     async def post(self, method: str, data: dict, connector: bool = False) -> dict:
         url = self.url if not connector else self.connector_url
         async with aiohttp.ClientSession() as session:
@@ -209,20 +202,15 @@ class B24:
         return await self.post('im.notify.system.add', data=data)
 
 
-# async def main():
-#     payment_data = SuccessfulPayment(currency='PLN', total_amount=10000, invoice_payload='111:268',
-#                                      telegram_payment_charge_id='fdfdsfdsfdf',
-#                                      provider_payment_charge_id='1411241212124')
-#     # msg_str = UserMessages().successful_payment(payment_data=payment_data, product_name='testProduct')
-#     # data = {
-#     #     'ATTACH': {
-#     #         'BLOCKS': [
-#     #             {'MESSAGE': msg_str}],
-#     #     }
-#     # }
-#     pprint(await B24().send_message_to_ol(user_id=6008255128, full_name='test',
-#                                           message='test'))
-#
-#
-# asyncio.run(main())
+async def main():
+    data = {'select': ['id', 'iblockId', 'name', 'detailText', 'dateActiveTo', 'dateActiveFrom'],
+                'filter': {'iblockId': 14, 'iblockSectionId': 22, 'active': 'Y'}}
+    response_data = await B24().post('catalog.product.list', data=data)
+    product_list = response_data['result']['products']
+    for i in range(len(product_list)):
+        product_list[i].update(await B24().get_product_price(product_list[i].get('id')))
+    return product_list
+
+
+pprint(asyncio.run(main()))
 # # # id чат бота 356

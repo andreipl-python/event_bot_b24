@@ -23,6 +23,7 @@ class UserMessages:
             description.replace('<br>', '').replace('&nbsp;', '')
             .replace('Дата', '🗓 Дата').replace('Время', '🕰 Время')
             .replace('Стоимость', '💰 Стоимость').replace('Локация', '📍 Локация')
+            .replace('Длительность', '🕰 Длительность')
         )
         pattern = r"(Локация:)(.*?)(\s)(https://.+)"
         formatted_text = re.sub(pattern, r'\1<a href="\4">\2</a>', formatted_description)
