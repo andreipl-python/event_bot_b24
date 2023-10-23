@@ -4,12 +4,11 @@ from aiogram import Bot, Dispatcher
 from aiogram.fsm.storage.memory import MemoryStorage
 from aiogram.types import BotCommand
 
-from b24_models import B24
 from config_reader import config
 import error_handler
 
 from agents import system_agents
-from handlers import user, admin
+from handlers import user_event_payments, admin, main_menu, cabinet, personal_selection
 from sql import Database
 
 
@@ -26,8 +25,12 @@ async def main():
     dp = Dispatcher(storage=MemoryStorage())
     bot = Bot(config.bot_token.get_secret_value(), parse_mode="HTML")
 
-    start_command = BotCommand(command='start', description='📅 Календарь событий')
-    await bot.set_my_commands(commands=[start_command])
+    start_command = BotCommand(command='start', description='⭐️ Главное меню')
+    calendar_command = BotCommand(command='calendar', description='📅 Календарь событий')
+    personal_command = BotCommand(command='personal', description='👑 Рекомендации')
+    cabinet_command = BotCommand(command='cabinet', description='👤 Личный кабинет')
+
+    await bot.set_my_commands(commands=[start_command, calendar_command, personal_command, cabinet_command])
 
     logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(name)s - %(message)s")
 
@@ -35,7 +38,8 @@ async def main():
     logger.info(await create_sql_tables())
 
     dp.include_routers(
-        admin.router, user.router, error_handler.router
+        admin.router, user_event_payments.router, main_menu.router, cabinet.router, personal_selection.router,
+        error_handler.router
     )
 
     asyncio.create_task(system_agents.update_products())

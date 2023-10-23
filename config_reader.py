@@ -12,6 +12,8 @@ class Settings(BaseSettings):
     dsn: SecretStr
     admin_ids: SecretStr
     stripe_test_token: SecretStr
+    products_cities: SecretStr
+    products_custom_property_lvl2: SecretStr
 
     class Config:
         env_file = '.env'

@@ -32,8 +32,10 @@ class B24:
         return {'PRICE': result['result']['PRICE'], 'CURRENCY_ID': result['result']['CURRENCY_ID']}
 
     async def get_product_list(self) -> List[dict]:
-        """Возвращает список товаров вида {'id', 'iblockId', 'name', 'detailText', 'dateActiveTo', 'dateActiveFrom'}"""
-        data = {'select': ['id', 'iblockId', 'name', 'detailText', 'dateActiveTo', 'dateActiveFrom'],
+        """Возвращает список товаров вида {'id', 'iblockId', 'name', 'detailText', 'dateActiveTo', 'dateActiveFrom',
+        'iblockSectionId'}"""
+        data = {'select': ['id', 'iblockId', 'name', 'detailText', 'dateActiveTo', 'dateActiveFrom', 'iblockSectionId',
+                           'property102', 'property104', 'property106'],
                 'filter': {'iblockId': 14, 'active': 'Y'}}
         response_data = await self.post('catalog.product.list', data=data)
         product_list = response_data['result']['products']
@@ -202,15 +204,16 @@ class B24:
         return await self.post('im.notify.system.add', data=data)
 
 
-async def main():
-    data = {'select': ['id', 'iblockId', 'name', 'detailText', 'dateActiveTo', 'dateActiveFrom'],
-                'filter': {'iblockId': 14, 'iblockSectionId': 22, 'active': 'Y'}}
-    response_data = await B24().post('catalog.product.list', data=data)
-    product_list = response_data['result']['products']
-    for i in range(len(product_list)):
-        product_list[i].update(await B24().get_product_price(product_list[i].get('id')))
-    return product_list
-
-
-pprint(asyncio.run(main()))
+# async def main():
+#     data = {'select': ['id', 'iblockId', 'name', 'detailText', 'dateActiveTo', 'dateActiveFrom', 'iblockSectionId',
+#                        'property102', 'property104', 'property106'],
+#                 'filter': {'iblockId': 14, 'active': 'Y', 'id': 310}}
+#     response_data = await B24().post('catalog.product.list', data=data)
+#     product_list = response_data['result']['products']
+#     for i in range(len(product_list)):
+#         product_list[i].update(await B24().get_product_price(product_list[i].get('id')))
+#     return product_list
+#
+#
+# pprint(asyncio.run(main()))
 # # # id чат бота 356

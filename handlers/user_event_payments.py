@@ -1,4 +1,3 @@
-import asyncio
 from typing import List
 
 from aiogram import Router, F, Bot
@@ -22,7 +21,7 @@ class User(StatesGroup):
     state = State()
 
 
-@router.message(Command('start'))
+@router.message(Command('calendar'))
 async def start(message: Message):
     user_id, username, full_name = message.from_user.id, message.from_user.username, message.from_user.full_name
 
@@ -62,39 +61,39 @@ async def contact(message: Message, state: FSMContext, bot: Bot):
                                    '[B]Пользователь запросил обратный звонок. Поставлена задача.[/B]')
 
 
-@router.message(Command('send_1'))
-async def send_custom(message: Message, bot: Bot):
-    async with Database() as db:
-        users_list: List[Record] = await db.get_all_users()
-        success_counter, fail_counter = 0, 0
-        for user in users_list:
-            user_id = user.get('user_id')
-            try:
-                await bot.send_photo(chat_id=user_id,
-                                     photo='AgACAgIAAxkBAAICtmUuuJE8EAxNuPQd2qhFwidt-zQXAAK2zjEb9lJ4SeZb9L7dmm0XAQADAgADeQADMAQ',
-                                     caption=UserMessages().custom_send(), reply_markup=await UserKb().event_kb(268))
-                await B24().send_message_to_ol(user_id, 'Система',
-                                               'Отправлено сообщение-рассылка. Бизнес-ужин 19.10 четверг в 18.00.')
-                success_counter += 1
-                await asyncio.sleep(0.5)
-            except:
-                await db.set_bot_blocked(user_id, True)
-                fail_counter += 1
-
-        await bot.send_message(chat_id=6008255128, text=f"<b>Итоги рассылки:</b>\n\nВсего адресатов: {len(users_list)}\n"
-                                                        f"Доставлено успешно: {success_counter}\n"
-                                                        f"Не доставлено (вероятно заблокировали бота): {fail_counter}")
-
-
-@router.message(F.photo)
-async def get_photo(message: Message):
-    await message.answer(message.photo[-1].file_id)
+# @router.message(Command('send_1'))
+# async def send_custom(message: Message, bot: Bot):
+#     async with Database() as db:
+#         users_list: List[Record] = await db.get_all_users()
+#         success_counter, fail_counter = 0, 0
+#         for user in users_list:
+#             user_id = user.get('user_id')
+#             try:
+#                 await bot.send_photo(chat_id=user_id,
+#                                      photo='AgACAgIAAxkBAAICtmUuuJE8EAxNuPQd2qhFwidt-zQXAAK2zjEb9lJ4SeZb9L7dmm0XAQADAgADeQADMAQ',
+#                                      caption=UserMessages().custom_send(), reply_markup=await UserKb().event_kb(268))
+#                 await B24().send_message_to_ol(user_id, 'Система',
+#                                                'Отправлено сообщение-рассылка. Бизнес-ужин 19.10 четверг в 18.00.')
+#                 success_counter += 1
+#                 await asyncio.sleep(0.5)
+#             except:
+#                 await db.set_bot_blocked(user_id, True)
+#                 fail_counter += 1
+#
+#         await bot.send_message(chat_id=6008255128, text=f"<b>Итоги рассылки:</b>\n\nВсего адресатов: {len(users_list)}\n"
+#                                                         f"Доставлено успешно: {success_counter}\n"
+#                                                         f"Не доставлено (вероятно заблокировали бота): {fail_counter}")
 
 
-@router.message(F.text)
-async def some_message(message: Message):
-    user_id, full_name = message.from_user.id, message.from_user.full_name
-    await B24().send_message_to_ol(user_id, full_name, f'{message.text}')
+# @router.message(F.photo)
+# async def return_photo_id(message: Message):
+#     await message.answer(message.photo[-1].file_id)
+
+
+# @router.message(F.text)
+# async def some_message(message: Message):
+#     user_id, full_name = message.from_user.id, message.from_user.full_name
+#     await B24().send_message_to_ol(user_id, full_name, f'{message.text}')
 
 
 @router.callback_query(F.data == 'call_ask')
@@ -106,8 +105,8 @@ async def ask_phone(callback: CallbackQuery, state: FSMContext):
     except: pass
 
 
-@router.callback_query(F.data == 'start')
-async def start_from_cb(callback: CallbackQuery):
+@router.callback_query(F.data == 'calendar')
+async def calendar_from_cb(callback: CallbackQuery):
     user_id = callback.from_user.id
 
     async with Database() as db:

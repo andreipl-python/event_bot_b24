@@ -1,3 +1,4 @@
+import json
 from datetime import datetime
 from typing import List, Optional
 
@@ -53,7 +54,7 @@ class Database:
         query = '''CREATE TABLE IF NOT EXISTS users (id SERIAL PRIMARY KEY, 
         user_id BIGINT CONSTRAINT uk_users_user_id UNIQUE, 
         username TEXT, full_name TEXT, b24_id INT, im_link_b24 TEXT, lead_id INT, bot_blocked BOOLEAN DEFAULT FALSE, 
-        phone TEXT);'''
+        phone TEXT, city TEXT);'''
         return await self.update(query)
 
     async def create_table_deals(self) -> None:
@@ -78,7 +79,8 @@ class Database:
 
     async def create_table_products(self) -> None:
         query = '''CREATE TABLE IF NOT EXISTS products (id INT PRIMARY KEY, name TEXT, active_from TIMESTAMP, 
-        active_to TIMESTAMP, price REAL, currency_id TEXT, description TEXT);'''
+        active_to TIMESTAMP, price REAL, currency_id TEXT, description TEXT, city TEXT, activities TEXT, topics TEXT, 
+        sales_types TEXT);'''
         return await self.update(query)
 
     async def create_table_payments(self) -> None:
@@ -105,6 +107,9 @@ class Database:
                                  telegram_payment_charge_id, provider_payment_charge_id, time_now)
 
     async def update_table_products(self, products_list: List[dict]) -> None:
+        products_cities = json.loads(config.products_cities.get_secret_value())
+        products_cities = {int(key): value for key, value in products_cities.items()}
+
         truncate_query = '''TRUNCATE TABLE products;'''
         await self.update(truncate_query)
         for product in products_list:
@@ -115,15 +120,22 @@ class Database:
             price = float(product.get('PRICE'))
             currency_id = product.get('CURRENCY_ID')
             description = product.get('detailText')
-            insert_query = '''INSERT INTO products (id, name, active_from, active_to, price, currency_id, description) 
-            VALUES ($1, $2, $3, $4, $5, $6, $7);'''
+            city_id = product.get('iblockSectionId')
+            city = products_cities.get(city_id)
+
+            activities = ','.join(active.get('value') for active in product.get('property102')) if product.get('property102') else ''
+            topics = ','.join(topic.get('value') for topic in product.get('property104')) if product.get('property104') else ''
+            sales_types = ','.join(sale_type.get('value') for sale_type in product.get('property106')) if product.get('property106') else ''
+
+            insert_query = '''INSERT INTO products (id, name, active_from, active_to, price, currency_id, description, 
+            city, activities, topics, sales_types) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11);'''
             await self.update(insert_query, product_id, name, active_from, active_to, price, currency_id,
-                              description)
+                              description, city, activities, topics, sales_types)
         return
 
-    async def get_products(self) -> List[Record]:
-        query = 'SELECT * FROM products;'
-        return await self.select(query)
+    async def get_products(self, city: str) -> List[Record]:
+        query = 'SELECT * FROM products WHERE city = $1;'
+        return await self.select(query, city)
 
     async def get_product_by_id(self, product_id: int) -> List[Record]:
         query = 'SELECT * FROM products WHERE id = $1;'
@@ -235,3 +247,16 @@ class Database:
         query = '''INSERT INTO newsletters (user_id, reminder) VALUES ($1, $2) 
         ON CONFLICT (user_id) DO UPDATE SET reminder = $2;'''
         return await self.update(query, user_id, time_now)
+
+    async def is_filled_out_the_form(self, user_id: int) -> bool:
+        query = '''SELECT * FROM users WHERE 
+        activities IS NOT NULL 
+        AND topics IS NOT NULL 
+        AND sales_types IS NOT NULL 
+        AND user_id = $1;'''
+        result: List[Record] = await self.select(query, user_id)
+        return bool(result)
+
+    async def set_user_form_result(self, user_id: int, activities: str, topics: str, sales_types: str) -> None:
+        query = 'UPDATE users SET activities = $2, topics = $3, sales_types = $4 WHERE user_id = $1;'
+        return await self.update(query, user_id, activities, topics, sales_types)
