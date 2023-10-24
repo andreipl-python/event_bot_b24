@@ -18,9 +18,9 @@ router = Router()
 async def cabinet(event: Union[CallbackQuery, Message]):
     user_id = event.from_user.id
     if isinstance(event, CallbackQuery):
-        return await event.message.edit_text(text=await UserMessages().cabinet(user_id), reply_markup=await UserKb().cabinet())
+        return await event.message.edit_text(text=UserMessages().cabinet(), reply_markup=await UserKb().cabinet())
 
-    await event.answer(text=await UserMessages().cabinet(user_id), reply_markup=await UserKb().cabinet())
+    await event.answer(text=UserMessages().cabinet(), reply_markup=await UserKb().cabinet())
     try: await event.delete()
     except: pass
 
