@@ -118,18 +118,42 @@ class UserMessages:
 
     @staticmethod
     async def settings(user_id: int) -> str:
+        products_custom_property_lvl2 = json.loads(config.products_custom_property_lvl2.get_secret_value())
         async with Database() as db:
             user_data: List[Record] = await db.get_user_data(user_id)
             user_city = user_data[0].get('city')
+            user_activities_list = user_data[0].get('activities').split(',')
+            products_activities_list = products_custom_property_lvl2.get('property102')
+            user_topics_list = user_data[0].get('topics').split(',')
+            products_topics_list = products_custom_property_lvl2.get('property104')
+            user_sales_types_list = user_data[0].get('sales_types').split(',')
+            products_sales_types_list = products_custom_property_lvl2.get('property106')
 
-        return ('Ваши текущие настройки:\n\n'
+            user_activities_str = ', '.join(
+                product_property['valueEnum'] for product_property in products_activities_list
+                if product_property['value'] in user_activities_list)
+            user_topics_str = ', '.join(product_property['valueEnum'] for product_property in products_topics_list
+                                        if product_property['value'] in user_topics_list)
+            user_sales_types_str = ', '.join(
+                product_property['valueEnum'] for product_property in products_sales_types_list
+                if product_property['value'] in user_sales_types_list)
+
+        return ('<b>Ваши текущие настройки:</b>\n\n'
                 f'Ваш город - 🟢 <b>{user_city}</b>\n\n'
+                f'<b>Ваша анкета предпочтений:</b>\n\n'
+                f'<b>1. Вид деятельности:</b> {user_activities_str}\n'
+                f'<b>2. Интересующие темы:</b> {user_topics_str}\n'
+                f'<b>3. Что вы продаете:</b> {user_sales_types_str}\n\n'
                 f'<b>В этом разделе вы можете:</b>\n\n'
                 f'"🌆 Изменить город"\n'
                 f'<i>- Регулярно обновляя информацию, мы предоставляем Вам доступ к самым актуальным мастер-классам, '
                 f'нетворкингам, бизнес ужинам и другим важным событиям, способным расширить ваше деловое общение и '
                 f'помочь вам достичь успеха в Вашем городе. <code>📅 Календарь событий</code> предоставит Вам '
-                f'расписание согласно выбранному городу.</i>')
+                f'расписание согласно выбранному городу.</i>\n\n'
+                f'"🧬 Изменить анкету предпочтений"\n'
+                f'<i>- Если вы хотите обновить свои предпочтения и интересы, вы можете перейти в этот раздел и '
+                f'перезаполнить анкету, чтобы мы могли предлагать вам наиболее релевантные мероприятия. Мы всегда '
+                f'стремимся предоставить вам наиболее персонализированный опыт.</i>')
 
     @staticmethod
     async def change_city(user_id: int) -> str:
