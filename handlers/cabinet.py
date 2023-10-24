@@ -45,3 +45,8 @@ async def change_city(callback: CallbackQuery, callback_data: Optional[ChangeCit
     await callback.message.edit_text(text=await UserMessages().change_city(user_id),
                                      reply_markup=await UserKb().change_city(user_id))
 
+
+@router.callback_query(F.data == 'history')
+async def history(callback: CallbackQuery):
+    await callback.answer(text='🛠 Скоро будет доступно!', show_alert=True)
+
