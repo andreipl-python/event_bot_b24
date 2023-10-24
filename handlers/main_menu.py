@@ -2,7 +2,9 @@ from aiogram import Router, F
 from aiogram.filters import CommandStart
 from aiogram.types import Message, CallbackQuery
 
+from b24_models import B24
 from keyboards.user_keyboards import UserKb
+from messages.user_messages import UserMessages
 from sql import Database
 
 router = Router()
@@ -13,8 +15,7 @@ async def main_menu(message: Message):
     user_id, username, full_name = message.from_user.id, message.from_user.username, message.from_user.full_name
 
     async with Database() as db:
-        start_message = await db.get_start_message()
-        await message.answer(text=start_message, reply_markup=await UserKb().main_menu(user_id))
+        await message.answer(text=UserMessages().main_menu(), reply_markup=await UserKb().main_menu(user_id))
         try: await message.delete()
         except Exception: pass
 
@@ -22,14 +23,12 @@ async def main_menu(message: Message):
         if not is_user_exists:
             await db.add_new_user(user_id, username, full_name)
 
+    await B24().send_message_to_ol(user_id, full_name, f'[B]Нажата кнопка[/B] [I]START[/I]')
+
 
 @router.callback_query(F.data == 'start')
 async def main_menu_from_cb(callback: CallbackQuery):
-    user_id = callback.from_user.id
+    user_id, full_name = callback.from_user.id, callback.from_user.full_name
+    await callback.message.edit_text(text=UserMessages().main_menu(), reply_markup=await UserKb().main_menu(user_id))
+    await B24().send_message_to_ol(user_id, full_name, f'[B]Нажата кнопка[/B] [I]Главное меню[/I]')
 
-    async with Database() as db:
-        start_message = await db.get_start_message()
-
-    await callback.message.answer(text=start_message, reply_markup=await UserKb().main_menu(user_id))
-    try: await callback.message.delete()
-    except Exception: pass

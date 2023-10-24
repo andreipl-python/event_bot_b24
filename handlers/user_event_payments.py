@@ -1,3 +1,4 @@
+import asyncio
 from typing import List
 
 from aiogram import Router, F, Bot
@@ -35,7 +36,7 @@ async def start(message: Message):
         if not is_user_exists:
             await db.add_new_user(user_id, username, full_name)
 
-    await B24().send_message_to_ol(user_id, full_name, f'[B]Нажата кнопка[/B] [I]START[/I]')
+    await B24().send_message_to_ol(user_id, full_name, f'[B]Нажата кнопка[/B] [I]Расписание[/I]')
 
 
 @router.message(F.contact)
@@ -61,39 +62,32 @@ async def contact(message: Message, state: FSMContext, bot: Bot):
                                    '[B]Пользователь запросил обратный звонок. Поставлена задача.[/B]')
 
 
-# @router.message(Command('send_1'))
-# async def send_custom(message: Message, bot: Bot):
-#     async with Database() as db:
-#         users_list: List[Record] = await db.get_all_users()
-#         success_counter, fail_counter = 0, 0
-#         for user in users_list:
-#             user_id = user.get('user_id')
-#             try:
-#                 await bot.send_photo(chat_id=user_id,
-#                                      photo='AgACAgIAAxkBAAICtmUuuJE8EAxNuPQd2qhFwidt-zQXAAK2zjEb9lJ4SeZb9L7dmm0XAQADAgADeQADMAQ',
-#                                      caption=UserMessages().custom_send(), reply_markup=await UserKb().event_kb(268))
-#                 await B24().send_message_to_ol(user_id, 'Система',
-#                                                'Отправлено сообщение-рассылка. Бизнес-ужин 19.10 четверг в 18.00.')
-#                 success_counter += 1
-#                 await asyncio.sleep(0.5)
-#             except:
-#                 await db.set_bot_blocked(user_id, True)
-#                 fail_counter += 1
-#
-#         await bot.send_message(chat_id=6008255128, text=f"<b>Итоги рассылки:</b>\n\nВсего адресатов: {len(users_list)}\n"
-#                                                         f"Доставлено успешно: {success_counter}\n"
-#                                                         f"Не доставлено (вероятно заблокировали бота): {fail_counter}")
+@router.message(Command('send_6603'))
+async def send_custom(message: Message, bot: Bot):
+    async with Database() as db:
+        users_list: List[Record] = await db.get_all_users()
+        success_counter, fail_counter = 0, 0
+        for user in users_list:
+            user_id = user.get('user_id')
+            try:
+                await bot.send_message(chat_id=user_id, text=UserMessages().custom_send(),
+                                       reply_markup=await UserKb().event_kb(272))
+                await B24().send_message_to_ol(user_id, 'Система',
+                                               'Отправлено сообщение-рассылка. 25.10 Бизнес - разборы в 16:00.')
+                success_counter += 1
+                await asyncio.sleep(0.5)
+            except:
+                await db.set_bot_blocked(user_id, True)
+                fail_counter += 1
+
+        await bot.send_message(chat_id=6008255128, text=f"<b>Итоги рассылки:</b>\n\nВсего адресатов: {len(users_list)}\n"
+                                                        f"Доставлено успешно: {success_counter}\n"
+                                                        f"Не доставлено (вероятно заблокировали бота): {fail_counter}")
 
 
-# @router.message(F.photo)
-# async def return_photo_id(message: Message):
-#     await message.answer(message.photo[-1].file_id)
-
-
-# @router.message(F.text)
-# async def some_message(message: Message):
-#     user_id, full_name = message.from_user.id, message.from_user.full_name
-#     await B24().send_message_to_ol(user_id, full_name, f'{message.text}')
+@router.message(F.photo)
+async def return_photo_id(message: Message):
+    await message.answer(message.photo[-1].file_id)
 
 
 @router.callback_query(F.data == 'call_ask')
@@ -107,14 +101,13 @@ async def ask_phone(callback: CallbackQuery, state: FSMContext):
 
 @router.callback_query(F.data == 'calendar')
 async def calendar_from_cb(callback: CallbackQuery):
-    user_id = callback.from_user.id
+    user_id, full_name = callback.from_user.id, callback.from_user.full_name
 
     async with Database() as db:
         start_message = await db.get_start_message()
 
-    await callback.message.answer(text=start_message, reply_markup=await UserKb().get_products_kb(user_id))
-    try: await callback.message.delete()
-    except Exception: pass
+    await callback.message.edit_text(text=start_message, reply_markup=await UserKb().get_products_kb(user_id))
+    await B24().send_message_to_ol(user_id, full_name, f'[B]Нажата кнопка[/B] [I]Расписание[/I]')
 
 
 @router.callback_query(SelectEventCallbackFactory.filter())
@@ -124,17 +117,13 @@ async def select_event(callback: CallbackQuery, callback_data: SelectEventCallba
     async with Database() as db:
         event_data: List[Record] = await db.get_product_by_id(callback_data.product_id)
         if not event_data:
-            await callback.message.answer(text=UserMessages().not_active_event,
+            await callback.message.edit_text(text=UserMessages().not_active_event,
                                                     reply_markup=await UserKb().return_to_start_kb())
-            try: await callback.message.delete()
-            except Exception: pass
             return
 
         event_description: str = event_data[0].get('description')
-        await callback.message.answer(text=UserMessages().event_description(event_description),
+        await callback.message.edit_text(text=UserMessages().event_description(event_description),
                                          reply_markup=await UserKb().event_kb(callback_data.product_id))
-        try: await callback.message.delete()
-        except Exception: pass
 
         message_keyboard = callback.message.reply_markup.inline_keyboard
         button_text = ''.join([i[0].text for i in message_keyboard
@@ -171,10 +160,8 @@ async def buy_event(callback: CallbackQuery, callback_data: BuyEventCallbackFact
     async with Database() as db:
         event_data: List[Record] = await db.get_product_by_id(product_id)
         if not event_data:
-            await callback.message.answer(text=UserMessages().not_active_event,
+            await callback.message.edit_text(text=UserMessages().not_active_event,
                                                     reply_markup=await UserKb().return_to_start_kb())
-            try: await callback.message.delete()
-            except Exception: pass
             return
 
         event_name: str = event_data[0].get('name')
@@ -202,10 +189,8 @@ async def buy_event(callback: CallbackQuery, callback_data: BuyEventCallbackFact
             deal_data = await B24().add_new_deal(full_name, event_name, contact_id)
             deal_id: int = deal_data.get('result')
 
-        await callback.message.answer(text="Выберите удобный для Вас способ оплаты:",
-                                      reply_markup=await UserKb().payment_methods_kb(product_id, deal_id))
-        try: await callback.message.delete()
-        except Exception: pass
+        await callback.message.edit_text(text="Выберите удобный для Вас способ оплаты:",
+                                         reply_markup=await UserKb().payment_methods_kb(product_id, deal_id))
 
         await B24().send_message_to_ol(user_id, full_name, f'[B]Нажата кнопка[/B] [I]Купить {event_name}[/I]')
         if not deal_exist:
@@ -225,11 +210,8 @@ async def payment_by_method(callback: CallbackQuery, callback_data: BuyEventPayM
     async with Database() as db:
         event_data: List[Record] = await db.get_product_by_id(callback_data.product_id)
         if not event_data:
-            await callback.message.answer(text=UserMessages().not_active_event,
+            return await callback.message.edit_text(text=UserMessages().not_active_event,
                                                     reply_markup=await UserKb().return_to_start_kb())
-            try: await callback.message.delete()
-            except Exception: pass
-            return
 
         event_name: str = event_data[0].get('name')
         product_price: float = event_data[0].get('price')
@@ -250,11 +232,9 @@ async def payment_by_method(callback: CallbackQuery, callback_data: BuyEventPayM
         except Exception: pass
 
     if callback_data.method in ['blik', 'bank']:
-        await callback.message.answer(
+        await callback.message.edit_text(
             text=UserMessages().other_payment(callback_data.deal_id, event_name, product_price, callback_data.method),
             reply_markup=await UserKb().return_to_payment_methods(product_id=callback_data.product_id, with_calendar=True))
-        try: await callback.message.delete()
-        except Exception: pass
 
 
 @router.pre_checkout_query()

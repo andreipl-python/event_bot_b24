@@ -1,11 +1,14 @@
-from typing import Union
+import json
+from typing import Union, Optional
 
 from aiogram import Router, F
 from aiogram.filters import Command
 from aiogram.types import CallbackQuery, Message
 
-from keyboards.user_keyboards import UserKb
+from config_reader import config
+from keyboards.user_keyboards import UserKb, ChangeCityFactory
 from messages.user_messages import UserMessages
+from sql import Database
 
 router = Router()
 
@@ -25,14 +28,20 @@ async def cabinet(event: Union[CallbackQuery, Message]):
 @router.callback_query(F.data == 'settings')
 async def settings(callback: CallbackQuery):
     user_id = callback.from_user.id
-    await callback.message.answer(text=await UserMessages().settings(user_id), reply_markup=await UserKb().settings())
-    try: await callback.message.delete()
-    except: pass
+    await callback.message.edit_text(text=await UserMessages().settings(user_id), reply_markup=await UserKb().settings())
 
 
 @router.callback_query(F.data == 'change_city')
-async def change_city(callback: CallbackQuery):
+@router.callback_query(ChangeCityFactory.filter())
+async def change_city(callback: CallbackQuery, callback_data: Optional[ChangeCityFactory] = None):
     user_id = callback.from_user.id
-    await callback.message.answer(text=await UserMessages().change_city(user_id),
-                                  reply_markup=await UserKb().change_city(user_id))
+    if callback_data:
+        products_cities = json.loads(config.products_cities.get_secret_value())
+        products_cities = {int(key): value for key, value in products_cities.items()}
+        new_city = products_cities.get(callback_data.city_id)
+        async with Database() as db:
+            await db.set_user_city(user_id, new_city)
+
+    await callback.message.edit_text(text=await UserMessages().change_city(user_id),
+                                     reply_markup=await UserKb().change_city(user_id))
 

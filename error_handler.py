@@ -1,10 +1,16 @@
 import traceback
 import textwrap
 
-from aiogram import Router, Bot
-from aiogram.types import ErrorEvent
+from aiogram import Router, Bot, F
+from aiogram.types import ErrorEvent, Message
 
 router = Router()
+
+
+@router.message(F.text)
+async def some_message(message: Message):
+    try: await message.delete()
+    except: pass
 
 
 @router.errors()

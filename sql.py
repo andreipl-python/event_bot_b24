@@ -260,3 +260,25 @@ class Database:
     async def set_user_form_result(self, user_id: int, activities: str, topics: str, sales_types: str) -> None:
         query = 'UPDATE users SET activities = $2, topics = $3, sales_types = $4 WHERE user_id = $1;'
         return await self.update(query, user_id, activities, topics, sales_types)
+
+    async def set_user_city(self, user_id: int, new_city: str) -> None:
+        query = 'UPDATE users SET city = $2 WHERE user_id = $1;'
+        return await self.update(query, user_id, new_city)
+
+    async def personal_events_counter(self, user_id: int) -> int:
+        user_data: List[Record] = await self.get_user_data(user_id)
+        user_city = user_data[0].get('city')
+        products: List[Record] = await self.get_products(user_city)
+        personal_products_counter = 0
+        user_activities = set(user_data[0].get('activities').split(','))
+        user_topics = set(user_data[0].get('topics').split(','))
+        user_sales_types = set(user_data[0].get('sales_types').split(','))
+        for product in products:
+            activities = set(product.get('activities').split(','))
+            topics = set(product.get('topics').split(','))
+            sales_types = set(product.get('sales_types').split(','))
+
+            if user_activities.intersection(activities) and user_topics.intersection(topics) \
+                    and user_sales_types.intersection(sales_types):
+                personal_products_counter += 1
+        return personal_products_counter

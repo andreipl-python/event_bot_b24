@@ -45,6 +45,9 @@ class UserKb(InlineKeyboardBuilder):
 
     async def main_menu(self, user_id: int) -> InlineKeyboardMarkup:
         admin_list = config.admin_ids.get_secret_value().split(',')
+        async with Database() as db:
+            is_filled_out_the_form = await db.is_filled_out_the_form(user_id)
+            personal_events_counter = await db.personal_events_counter(user_id) if is_filled_out_the_form else '❗️'
         self.button(
             text='🗓 Расписание',
             callback_data='calendar'
@@ -54,7 +57,7 @@ class UserKb(InlineKeyboardBuilder):
             callback_data='about_us'
         )
         self.button(
-            text='👑 Персональные рекомендации',
+            text=f'👑 Персональные рекомендации [{personal_events_counter}]',
             callback_data='personal'
         )
         self.button(
@@ -122,13 +125,14 @@ class UserKb(InlineKeyboardBuilder):
     async def change_city(self, user_id: int) -> InlineKeyboardMarkup:
         products_cities = json.loads(config.products_cities.get_secret_value())
         products_cities = {int(key): value for key, value in products_cities.items()}
+        buttons_texts = {'Gdańsk': '🐳 Gdańsk', 'Poznań': '🐐 Poznań', 'Wrocław': '🌉 Wrocław'}
         async with Database() as db:
             user_data: List[Record] = await db.get_user_data(user_id)
             user_city = user_data[0].get('city')
         current_city_id = next((key for key, val in products_cities.items() if val == user_city), None)
         for city_id, city in products_cities.items():
             if city_id != current_city_id:
-                self.button(text=city, callback_data=ChangeCityFactory(city_id=city_id))
+                self.button(text=buttons_texts.get(city), callback_data=ChangeCityFactory(city_id=city_id))
 
         self.button(
             text='🔙 Настройки',
@@ -167,8 +171,8 @@ class UserKb(InlineKeyboardBuilder):
             text='⚡️ Купить',
             callback_data=BuyEventCallbackFactory(product_id=product_id))
         self.button(
-            text='🔙 Календарь событий',
-            callback_data='calendar'
+            text='⭐️ Главное меню',
+            callback_data='start'
         )
         self.adjust(1)
         return self.as_markup()
@@ -189,6 +193,25 @@ class UserKb(InlineKeyboardBuilder):
         self.button(
             text='🔙 Календарь событий',
             callback_data='calendar'
+        )
+        self.adjust(1)
+        return self.as_markup()
+
+    async def about_us(self, user_id: int) -> InlineKeyboardMarkup:
+        async with Database() as db:
+            is_filled_out_the_form = await db.is_filled_out_the_form(user_id)
+            personal_events_counter = await db.personal_events_counter(user_id) if is_filled_out_the_form else '❗️'
+        self.button(
+            text='🗓 Расписание',
+            callback_data='calendar'
+        )
+        self.button(
+            text=f'👑 Персональные рекомендации [{personal_events_counter}]',
+            callback_data='personal'
+        )
+        self.button(
+            text='🔙 Главное меню',
+            callback_data='start'
         )
         self.adjust(1)
         return self.as_markup()
@@ -236,14 +259,14 @@ class UserKb(InlineKeyboardBuilder):
                 callback_data=AnketaStep1Factory(active_id=active_id)
             )
         self.button(
-            text='Подтвердить',
+            text='📨 Подтвердить',
             callback_data='approve_anketa_step1'
         )
         self.button(
             text='🔙 Главное меню',
             callback_data='start'
         )
-        self.adjust(1)
+        self.adjust(1, 1, 2, 1, 1)
         return self.as_markup()
 
     async def anketa_step2(self, buttons_data: dict) -> InlineKeyboardMarkup:
@@ -260,14 +283,14 @@ class UserKb(InlineKeyboardBuilder):
                 callback_data=AnketaStep2Factory(topic_id=topic_id)
             )
         self.button(
-            text='Подтвердить',
+            text='📨 Подтвердить',
             callback_data='approve_anketa_step2'
         )
         self.button(
             text='🔙 Предыдущий вопрос',
             callback_data='anketa'
         )
-        self.adjust(1)
+        self.adjust(2, 1, 1, 1, 2, 1, 1, 2, 1, 1)
         return self.as_markup()
 
     async def anketa_step3(self, buttons_data: dict) -> InlineKeyboardMarkup:
@@ -284,19 +307,22 @@ class UserKb(InlineKeyboardBuilder):
                 callback_data=AnketaStep3Factory(sale_type_id=sale_type_id)
             )
         self.button(
-            text='Подтвердить',
+            text='📨 Подтвердить',
             callback_data='approve_anketa_step3'
         )
         self.button(
             text='🔙 Предыдущий вопрос',
             callback_data='approve_anketa_step1'
         )
-        self.adjust(1)
+        self.adjust(2, 1, 1, 1)
         return self.as_markup()
 
-    async def end_of_anketa(self) -> InlineKeyboardMarkup:
+    async def end_of_anketa(self, user_id: int) -> InlineKeyboardMarkup:
+        async with Database() as db:
+            is_filled_out_the_form = await db.is_filled_out_the_form(user_id)
+            personal_events_counter = await db.personal_events_counter(user_id) if is_filled_out_the_form else '❗️'
         self.button(
-            text='👑 Мероприятия для меня',
+            text=f'👑 Мероприятия для меня [{personal_events_counter}]',
             callback_data='personal'
         )
         self.button(

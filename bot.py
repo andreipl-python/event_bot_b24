@@ -8,7 +8,7 @@ from config_reader import config
 import error_handler
 
 from agents import system_agents
-from handlers import user_event_payments, admin, main_menu, cabinet, personal_selection
+from handlers import user_event_payments, admin, main_menu, cabinet, personal_selection, about_us
 from sql import Database
 
 
@@ -39,7 +39,7 @@ async def main():
 
     dp.include_routers(
         admin.router, user_event_payments.router, main_menu.router, cabinet.router, personal_selection.router,
-        error_handler.router
+        about_us.router, error_handler.router
     )
 
     asyncio.create_task(system_agents.update_products())
