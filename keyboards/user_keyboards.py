@@ -1,6 +1,6 @@
 import json
 from operator import itemgetter
-from typing import Optional, List
+from typing import Optional, List, Literal
 
 from aiogram.filters.callback_data import CallbackData
 from aiogram.types import InlineKeyboardMarkup, ReplyKeyboardMarkup
@@ -12,7 +12,8 @@ from sql import Database
 
 
 class SelectEventCallbackFactory(CallbackData, prefix='selectevent'):
-    product_id: Optional[int] = None
+    product_id: int
+    back_to_personal: Optional[bool] = None
 
 
 class BuyEventCallbackFactory(CallbackData, prefix='buyevent'):
@@ -166,10 +167,14 @@ class UserKb(InlineKeyboardBuilder):
         self.adjust(1)
         return self.as_markup()
 
-    async def event_kb(self, product_id: int) -> InlineKeyboardMarkup:
+    async def event_kb(self, product_id: int, back_to: bool) -> InlineKeyboardMarkup:
         self.button(
             text='⚡️ Купить',
             callback_data=BuyEventCallbackFactory(product_id=product_id))
+        self.button(
+            text='🔙 Расписание' if not back_to else '🔙 Персональные рекомендации',
+            callback_data='calendar' if not back_to else 'personal'
+        )
         self.button(
             text='⭐️ Главное меню',
             callback_data='start'
@@ -358,7 +363,8 @@ class UserKb(InlineKeyboardBuilder):
                 button_text = product.get('name') if not is_payed else f'{product.get("name")} 🔋'
                 self.button(
                     text=button_text,
-                    callback_data=SelectEventCallbackFactory(product_id=product.get('id')))
+                    callback_data=SelectEventCallbackFactory(product_id=product.get('id'), back_to_personal=True)
+                )
 
         self.button(
             text='🔙 Главное меню',

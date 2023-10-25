@@ -110,8 +110,11 @@ async def anketa_step3(callback: CallbackQuery, state: FSMContext, callback_data
     if callback_data:
         if callback_data.sale_type_id == '202':  # ничего
             buttons3 = {'198': False, '200': False, '202': True}
+            await state.update_data(buttons3=buttons3)
         else:
+            buttons3['202'] = False
             buttons3[callback_data.sale_type_id] = not buttons3[callback_data.sale_type_id]
+            await state.update_data(buttons3=buttons3)
 
     try:
         await callback.message.edit_text(text=UserMessages().anketa_step_3(),
@@ -122,7 +125,7 @@ async def anketa_step3(callback: CallbackQuery, state: FSMContext, callback_data
 
 @router.callback_query(F.data == 'approve_anketa_step3')
 async def end_of_anketa(callback: CallbackQuery, state: FSMContext):
-    user_id, full_name, state_data = callback.from_user.id, callback.from_user.full_name,await state.get_data()
+    user_id, full_name, state_data = callback.from_user.id, callback.from_user.full_name, await state.get_data()
 
     buttons3: dict = state_data.get('buttons3')
     if all(value is False for value in buttons3.values()):
