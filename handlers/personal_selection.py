@@ -20,7 +20,7 @@ class Anketa(StatesGroup):
 
 
 @router.message(Command('personal'))
-@router.callback_query(F.data == 'personal')
+@router.callback_query(F.data.startswith('personal'))
 async def personal_events(event: Union[CallbackQuery, Message], bot: Bot):
     user_id, full_name = event.from_user.id, event.from_user.full_name
 
@@ -29,10 +29,18 @@ async def personal_events(event: Union[CallbackQuery, Message], bot: Bot):
 
     if not is_filled_out_the_form:  # не проходил анкету
         if isinstance(event, CallbackQuery):
-            await event.message.edit_text(text=UserMessages().personal_selection_anketa(),
+            if event.data.endswith('mm'):
+                await event.message.answer(text=UserMessages().personal_selection_anketa(),
+                                              reply_markup=await UserKb().personal_anketa())
+                try: await event.message.delete()
+                except: pass
+            else:
+                await event.message.edit_text(text=UserMessages().personal_selection_anketa(),
                                                     reply_markup=await UserKb().personal_anketa())
+
             return await B24().send_message_to_ol(user_id, full_name,
                                                   f'[B]Нажата кнопка[/B] [I]Персональные рекомендации[/I]')
+
         try: await event.delete()
         except: pass
         await event.answer(text=UserMessages().personal_selection_anketa(), reply_markup=await UserKb().personal_anketa())
@@ -40,7 +48,13 @@ async def personal_events(event: Union[CallbackQuery, Message], bot: Bot):
                                               f'[B]Нажата кнопка[/B] [I]Персональные рекомендации[/I]')
 
     if isinstance(event, CallbackQuery):
-        await event.message.edit_text(text=await UserMessages().personal_selection(user_id),
+        if event.data.endswith('mm'):
+            await event.message.answer(text=await UserMessages().personal_selection(user_id),
+                                          reply_markup=await UserKb().get_personal_products_kb(user_id))
+            try: await event.message.delete()
+            except: pass
+        else:
+            await event.message.edit_text(text=await UserMessages().personal_selection(user_id),
                                              reply_markup=await UserKb().get_personal_products_kb(user_id))
         return await B24().send_message_to_ol(user_id, full_name,
                                               f'[B]Нажата кнопка[/B] [I]Персональные рекомендации[/I]')
@@ -49,6 +63,7 @@ async def personal_events(event: Union[CallbackQuery, Message], bot: Bot):
                        reply_markup=await UserKb().get_personal_products_kb(user_id))
     try: await event.delete()
     except: pass
+
     await B24().send_message_to_ol(user_id, full_name,
                                           f'[B]Нажата кнопка[/B] [I]Персональные рекомендации[/I]')
 

@@ -16,9 +16,11 @@ router = Router()
 @router.callback_query(F.data == 'cabinet')
 @router.message(Command('cabinet'))
 async def cabinet(event: Union[CallbackQuery, Message]):
-    user_id = event.from_user.id
     if isinstance(event, CallbackQuery):
-        return await event.message.edit_text(text=UserMessages().cabinet(), reply_markup=await UserKb().cabinet())
+        await event.message.answer(text=UserMessages().cabinet(), reply_markup=await UserKb().cabinet())
+        try: await event.message.delete()
+        except: pass
+        return
 
     await event.answer(text=UserMessages().cabinet(), reply_markup=await UserKb().cabinet())
     try: await event.delete()

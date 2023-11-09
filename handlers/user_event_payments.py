@@ -62,28 +62,28 @@ async def contact(message: Message, state: FSMContext, bot: Bot):
                                    '[B]Пользователь запросил обратный звонок. Поставлена задача.[/B]')
 
 
-# @router.message(Command('send_6603'))
-# async def send_custom(message: Message, bot: Bot):
-#     await bot.send_message(chat_id=6008255128, text='Начал рассылку')
-#     async with Database() as db:
-#         users_list: List[Record] = await db.get_all_users()
-#         success_counter, fail_counter = 0, 0
-#         for user in users_list:
-#             user_id = user.get('user_id')
-#             try:
-#                 await bot.send_message(chat_id=user_id, text=UserMessages().custom_send(),
-#                                        reply_markup=await UserKb().event_kb(272))
-#                 await B24().send_message_to_ol(user_id, 'Система',
-#                                                'Отправлено сообщение-рассылка. 25.10 Бизнес - разборы в 16:00.')
-#                 success_counter += 1
-#                 await asyncio.sleep(0.5)
-#             except:
-#                 await db.set_bot_blocked(user_id, True)
-#                 fail_counter += 1
-#
-#         await bot.send_message(chat_id=6008255128, text=f"<b>Итоги рассылки:</b>\n\nВсего адресатов: {len(users_list)}\n"
-#                                                         f"Доставлено успешно: {success_counter}\n"
-#                                                         f"Не доставлено (вероятно заблокировали бота): {fail_counter}")
+@router.message(Command('send_6603'))
+async def send_custom(message: Message, bot: Bot):
+    await bot.send_message(chat_id=6008255128, text='Начал рассылку')
+    async with Database() as db:
+        users_list: List[Record] = await db.get_all_users()
+        success_counter, fail_counter = 0, 0
+        for user in users_list:
+            user_id = user.get('user_id')
+            try:
+                await bot.send_message(chat_id=user_id, text=UserMessages().custom_send(),
+                                       reply_markup=await UserKb().event_kb(326), disable_web_page_preview=True)
+                await B24().send_message_to_ol(user_id, 'Система',
+                                               'Отправлено сообщение-рассылка. Консультация.')
+                success_counter += 1
+                await asyncio.sleep(0.5)
+            except:
+                await db.set_bot_blocked(user_id, True)
+                fail_counter += 1
+
+        await bot.send_message(chat_id=6008255128, text=f"<b>Итоги рассылки:</b>\n\nВсего адресатов: {len(users_list)}\n"
+                                                        f"Доставлено успешно: {success_counter}\n"
+                                                        f"Не доставлено (вероятно заблокировали бота): {fail_counter}")
 
 
 @router.message(F.photo)
@@ -100,14 +100,19 @@ async def ask_phone(callback: CallbackQuery, state: FSMContext):
     except: pass
 
 
-@router.callback_query(F.data == 'calendar')
+@router.callback_query(F.data.startswith('calendar'))
 async def calendar_from_cb(callback: CallbackQuery):
     user_id, full_name = callback.from_user.id, callback.from_user.full_name
 
     async with Database() as db:
         start_message = await db.get_start_message()
 
-    await callback.message.edit_text(text=start_message, reply_markup=await UserKb().get_products_kb(user_id))
+    if callback.data.endswith('mm'):
+        await callback.message.answer(text=start_message, reply_markup=await UserKb().get_products_kb(user_id))
+        try: await callback.message.delete()
+        except: pass
+    else:
+        await callback.message.edit_text(text=start_message, reply_markup=await UserKb().get_products_kb(user_id))
     await B24().send_message_to_ol(user_id, full_name, f'[B]Нажата кнопка[/B] [I]Расписание[/I]')
 
 
@@ -119,13 +124,19 @@ async def select_event(callback: CallbackQuery, callback_data: SelectEventCallba
         event_data: List[Record] = await db.get_product_by_id(callback_data.product_id)
         if not event_data:
             await callback.message.edit_text(text=UserMessages().not_active_event,
-                                                    reply_markup=await UserKb().return_to_start_kb())
+                                             reply_markup=await UserKb().return_to_calendar_kb())
             return
 
         event_description: str = event_data[0].get('description')
         back_to_personal = True if callback_data.back_to_personal else False
-        await callback.message.edit_text(text=UserMessages().event_description(event_description),
-                                         reply_markup=await UserKb().event_kb(callback_data.product_id, back_to_personal))
+        if callback_data.from_mm:
+            await callback.message.answer(text=UserMessages().event_description(event_description),
+                                          reply_markup=await UserKb().event_kb(callback_data.product_id, back_to_personal))
+            try: await callback.message.delete()
+            except: pass
+        else:
+            await callback.message.edit_text(text=UserMessages().event_description(event_description),
+                                             reply_markup=await UserKb().event_kb(callback_data.product_id, back_to_personal))
 
         message_keyboard = callback.message.reply_markup.inline_keyboard
         button_text = ''.join([i[0].text for i in message_keyboard
@@ -163,7 +174,7 @@ async def buy_event(callback: CallbackQuery, callback_data: BuyEventCallbackFact
         event_data: List[Record] = await db.get_product_by_id(product_id)
         if not event_data:
             return await callback.message.edit_text(text=UserMessages().not_active_event,
-                                                    reply_markup=await UserKb().return_to_start_kb())
+                                                    reply_markup=await UserKb().return_to_calendar_kb())
 
         event_name: str = event_data[0].get('name')
 
@@ -213,7 +224,7 @@ async def payment_by_method(callback: CallbackQuery, callback_data: BuyEventPayM
         event_data: List[Record] = await db.get_product_by_id(callback_data.product_id)
         if not event_data:
             return await callback.message.edit_text(text=UserMessages().not_active_event,
-                                                    reply_markup=await UserKb().return_to_start_kb())
+                                                    reply_markup=await UserKb().return_to_calendar_kb())
 
         event_name: str = event_data[0].get('name')
         product_price: float = event_data[0].get('price')
@@ -268,7 +279,7 @@ async def successful_payment(message: Message, state: FSMContext, bot: Bot):
         product_data: List[Record] = await db.get_product_by_id(product_id)
         product_name = product_data[0].get('name')
     await message.answer(text=UserMessages().successful_payment(payment_data, product_name),
-                         reply_markup=await UserKb().return_to_start_kb())
+                         reply_markup=await UserKb().return_to_calendar_kb())
 
     try: await bot.delete_message(user_id, state_data.get('msg_to_del'))
     except Exception: pass

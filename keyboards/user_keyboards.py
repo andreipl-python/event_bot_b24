@@ -14,6 +14,7 @@ from sql import Database
 class SelectEventCallbackFactory(CallbackData, prefix='selectevent'):
     product_id: int
     back_to_personal: Optional[bool] = None
+    from_mm: Optional[bool] = None
 
 
 class BuyEventCallbackFactory(CallbackData, prefix='buyevent'):
@@ -50,8 +51,12 @@ class UserKb(InlineKeyboardBuilder):
             is_filled_out_the_form = await db.is_filled_out_the_form(user_id)
             personal_events_counter = await db.personal_events_counter(user_id) if is_filled_out_the_form else '❗️'
         self.button(
+            text='💡 Консультация',
+            callback_data=SelectEventCallbackFactory(product_id=326, from_mm=True)
+        )
+        self.button(
             text='🗓 Расписание',
-            callback_data='calendar'
+            callback_data='calendar:mm'
         )
         self.button(
             text='🎉 О нас',
@@ -59,7 +64,7 @@ class UserKb(InlineKeyboardBuilder):
         )
         self.button(
             text=f'👑 Персональные рекомендации [{personal_events_counter}]',
-            callback_data='personal'
+            callback_data='personal:mm'
         )
         self.button(
             text='👤 Личный кабинет',
@@ -70,9 +75,13 @@ class UserKb(InlineKeyboardBuilder):
             text='❓ Задать вопрос',
             callback_data='question'
         )
+        self.button(
+            text='🪄 Как пользоваться ботом',
+            callback_data='how_to'
+        )
         if str(user_id) in admin_list:
             self.button(text='⚙️ Панель администратора', callback_data='admin_panel')
-        self.adjust(2, 1, 2, 1)
+        self.adjust(1, 2, 1, 2, 1, 1)
         return self.as_markup()
 
     async def cabinet(self) -> InlineKeyboardMarkup:
@@ -154,11 +163,12 @@ class UserKb(InlineKeyboardBuilder):
             products = await db.get_products(user_city)
             sorted_products = sorted(products, key=itemgetter('active_to'))
             for product in sorted_products:
-                is_payed: List[Record] = await db.get_user_payed_deal_by_product_id(user_id, product.get('id'))
-                button_text = product.get('name') if not is_payed else f'{product.get("name")} 🔋'
-                self.button(
-                    text=button_text,
-                    callback_data=SelectEventCallbackFactory(product_id=product.get('id')))
+                if product.get('id') != 326:
+                    is_payed: List[Record] = await db.get_user_payed_deal_by_product_id(user_id, product.get('id'))
+                    button_text = product.get('name') if not is_payed else f'{product.get("name")} 🔋'
+                    self.button(
+                        text=button_text,
+                        callback_data=SelectEventCallbackFactory(product_id=product.get('id')))
 
         self.button(
             text='🔙 Главное меню',
@@ -167,14 +177,15 @@ class UserKb(InlineKeyboardBuilder):
         self.adjust(1)
         return self.as_markup()
 
-    async def event_kb(self, product_id: int, back_to: bool) -> InlineKeyboardMarkup:
+    async def event_kb(self, product_id: int, back_to: bool = None) -> InlineKeyboardMarkup:
         self.button(
-            text='⚡️ Купить',
+            text='⚡️ Купить' if product_id != 326 else '⚡️ Купить консультацию',
             callback_data=BuyEventCallbackFactory(product_id=product_id))
-        self.button(
-            text='🔙 Расписание' if not back_to else '🔙 Персональные рекомендации',
-            callback_data='calendar' if not back_to else 'personal'
-        )
+        if product_id != 326:
+            self.button(
+                text='🔙 Расписание' if not back_to else '🔙 Персональные рекомендации',
+                callback_data='calendar' if not back_to else 'personal'
+            )
         self.button(
             text='⭐️ Главное меню',
             callback_data='start'
@@ -194,10 +205,18 @@ class UserKb(InlineKeyboardBuilder):
         self.adjust(1)
         return self.as_markup()
 
-    async def return_to_start_kb(self) -> InlineKeyboardMarkup:
+    async def return_to_calendar_kb(self) -> InlineKeyboardMarkup:
         self.button(
             text='🔙 Календарь событий',
             callback_data='calendar'
+        )
+        self.adjust(1)
+        return self.as_markup()
+
+    async def return_to_main_menu_kb(self) -> InlineKeyboardMarkup:
+        self.button(
+            text='🔙 Главное меню',
+            callback_data='start'
         )
         self.adjust(1)
         return self.as_markup()

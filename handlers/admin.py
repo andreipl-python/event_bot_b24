@@ -23,7 +23,9 @@ class Admin(StatesGroup):
 @router.callback_query(F.data == 'admin_panel')
 async def admin_panel(callback: CallbackQuery, state: FSMContext):
     await state.clear()
-    await callback.message.edit_text(text='Выберите действие 😊', reply_markup=AdminPanelKb().admin_panel_kb())
+    await callback.message.answer(text='Выберите действие 😊', reply_markup=AdminPanelKb().admin_panel_kb())
+    try: await callback.message.delete()
+    except: pass
 
 
 @router.callback_query(F.data == 'payment_registration')
@@ -109,7 +111,7 @@ async def set_new_payment(callback: CallbackQuery, callback_data: ApprovePayment
     try:
         await bot.send_message(chat_id=deal_data[0].get('user_id'),
                                text=UserMessages().successful_payment(payment_data, product_data[0].get('name')),
-                               reply_markup=await UserKb().return_to_start_kb())
+                               reply_markup=await UserKb().return_to_calendar_kb())
         await B24().send_message_to_ol(deal_data[0].get('user_id'), 'Система',
                                        f'Пользователю отправлено подтверждение:\n\n'
                                        f'{UserMessages().successful_payment(payment_data, product_data[0].get("name"))}')
