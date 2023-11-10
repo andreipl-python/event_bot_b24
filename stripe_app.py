@@ -1,5 +1,3 @@
-from pprint import pprint
-
 from aiogram import Bot
 from flask import Flask, request
 
@@ -16,8 +14,7 @@ class StripeMessage:
 @app.route("/stripe", methods=['POST'])
 async def stripe_webhook_event():
     data = request.get_json()
-    pprint(data)
-    bot = Bot(token='6711632642:AAFpra8VDr0ijV0GWW1mADM2Zq_B6mCaD3o')
+    bot = Bot(token='')
     await bot.send_message(chat_id=6008255128, text=str(data))
     await bot.session.close()
     return "OK", 200

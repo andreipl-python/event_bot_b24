@@ -2,7 +2,7 @@ import json
 from typing import List
 
 from asyncpg import Record
-from flask import Flask, request, make_response
+from flask import Flask, request
 from aiogram import Bot
 from sql import Database
 from b24_models import B24
@@ -32,7 +32,7 @@ async def iml():
 
 @app.route("/msg", methods=['GET', 'POST'])
 async def send_msg():
-    bot = Bot(token='6640746456:AAEmQ8J3ij_shPQ2oeIz5rn-nThM1mH1Fm8')
+    bot = Bot(token='')
     data_bytes = request.data
     data_string = data_bytes.decode('utf-8')
     data_dict: dict = json.loads(data_string)
@@ -81,4 +81,4 @@ async def messaging_insta_webhook():
 if __name__ == "__main__":
     app.run(debug=True, host="0.0.0.0", port=9999)
 
-# EAAL6gCLc914BO13S2YcEL2n5mdIaJxKPfereWsQmvah3qihMLQqvu14wNH7ZBy5JZAc4TBZBPLZCveK9maDWQYWLknRQpamHWbIiyx8hdaZCp5TlSGmi00VZB0mfUeXjLor9c3jLhjrEjBZCSZCPdRxoLCZBpwvaeryCwj6PNgUMbtbWR4ZCDbuodOZCUdT9V84alW6
+
