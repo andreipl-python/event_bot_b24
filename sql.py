@@ -282,3 +282,5 @@ class Database:
                     and user_sales_types.intersection(sales_types):
                 personal_products_counter += 1
         return personal_products_counter
+
+
