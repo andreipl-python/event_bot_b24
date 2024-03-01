@@ -283,4 +283,3 @@ class Database:
                 personal_products_counter += 1
         return personal_products_counter
 
-
