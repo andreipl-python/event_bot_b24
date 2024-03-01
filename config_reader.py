@@ -11,7 +11,7 @@ class Settings(BaseSettings):
     connector_url: SecretStr
     dsn: SecretStr
     admin_ids: SecretStr
-    stripe_test_token: SecretStr
+    redsys_test_token: SecretStr
     products_cities: SecretStr
     products_custom_property_lvl2: SecretStr
 

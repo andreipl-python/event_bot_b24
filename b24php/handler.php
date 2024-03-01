@@ -1,12 +1,12 @@
 <?php
 require_once('function.php');
-$widgetUri = '';//detail page chat "https://example.com/index.php"
-$widgetName = 'ExampleSiteChatWidget';//name connector in widget
+$widgetUri = '';
+$widgetName = 'ExampleSiteChatWidget';
 $connector_id = getConnectorID();
 
 if (!empty($_REQUEST['PLACEMENT_OPTIONS']) && $_REQUEST['PLACEMENT'] == 'SETTING_CONNECTOR')
 {
-	//activate connector
+
 	$options = json_decode($_REQUEST['PLACEMENT_OPTIONS'], true);
 	$result = CRest::call(
 		'imconnector.activate',
@@ -18,7 +18,6 @@ if (!empty($_REQUEST['PLACEMENT_OPTIONS']) && $_REQUEST['PLACEMENT'] == 'SETTING
 	);
 	if (!empty($result['result']))
 	{
-		//add data widget
 		if(!empty($widgetUri) && !empty($widgetName))
 		{
 			$resultWidgetData = CRest::call(
@@ -46,7 +45,7 @@ if (!empty($_REQUEST['PLACEMENT_OPTIONS']) && $_REQUEST['PLACEMENT'] == 'SETTING
 		}
 	}
 }
-//функция отправки сообщения товарищу
+
 if (
     $_REQUEST['event'] == 'ONIMCONNECTORMESSAGEADD'
     && !empty($_REQUEST['data']['CONNECTOR'])
@@ -78,31 +77,23 @@ if (
 	}
 }
 {
-    // Адрес, на который нужно отправить POST запрос
     $targetUrl = 'http://tb24.chickenkiller.com:9999/msg';
 
-    // Параметры для POST запроса
     $postData = array(
         'data' => $_REQUEST
     );
 
-    // Преобразование данных в JSON
     $jsonData = json_encode($postData);
 
-    // Инициализация cURL сессии
     $curl = curl_init();
 
-    // Настройка параметров cURL сессии
     curl_setopt($curl, CURLOPT_URL, $targetUrl);
     curl_setopt($curl, CURLOPT_POST, true);
     curl_setopt($curl, CURLOPT_POSTFIELDS, $jsonData);
     curl_setopt($curl, CURLOPT_RETURNTRANSFER, true);
     curl_setopt($curl, CURLOPT_HTTPHEADER, array('Content-Type: application/json'));
 
-    // Выполнение запроса
     $response = curl_exec($curl);
-
-    // Закрытие cURL сессии
     curl_close($curl);
 }
 

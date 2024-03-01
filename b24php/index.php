@@ -33,15 +33,15 @@
 				'dataType': 'html',
 				'url': 'ajax.php',
 				'data': 'type=chat_history',
-				success: function (data) {//success callback
+				success: function (data) {
 					$('#chat_history').text('').html(data);
 				}
 			});
 		}
 		setInterval(updateChat, 5000);
 		updateChat();
-		$('#form_message').on('submit', function (el) {//event submit form
-			el.preventDefault();//the default action of the event will not be triggered
+		$('#form_message').on('submit', function (el) {
+			el.preventDefault();
 			$('#chat_form').addClass('spinner-border');
 			$('#form_message').hide();
 			var formData = $(this).serialize();
@@ -50,7 +50,7 @@
 				'dataType': 'json',
 				'url': 'ajax.php',
 				'data': formData + '&type=send_message',
-				success: function (data) {//success callback
+				success: function (data) {
 					updateChat();
 					$('#chat_form').removeClass('spinner-border');
 					$('#form_message textarea[name=message]').val('');

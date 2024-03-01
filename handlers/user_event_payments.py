@@ -5,7 +5,7 @@ from aiogram import Router, F, Bot
 from aiogram.filters import Command
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import StatesGroup, State
-from aiogram.types import Message, CallbackQuery, LabeledPrice, PreCheckoutQuery, ReplyKeyboardRemove
+from aiogram.types import Message, CallbackQuery, LabeledPrice, PreCheckoutQuery, ReplyKeyboardRemove, InputMediaPhoto
 from asyncpg import Record
 
 from sql import Database
@@ -29,8 +29,10 @@ async def start(message: Message):
     async with Database() as db:
         start_message = await db.get_start_message()
         await message.answer(text=start_message, reply_markup=await UserKb().get_products_kb(user_id))
-        try: await message.delete()
-        except Exception: pass
+        try:
+            await message.delete()
+        except Exception:
+            pass
 
         is_user_exists = await db.is_user_exist(user_id)
         if not is_user_exists:
@@ -43,10 +45,14 @@ async def start(message: Message):
 async def contact(message: Message, state: FSMContext, bot: Bot):
     user_id, state_data = message.from_user.id, await state.get_data()
     await message.answer(text=UserMessages().successful_contact, reply_markup=ReplyKeyboardRemove())
-    try: await message.delete()
-    except: pass
-    try: await bot.delete_message(user_id, state_data.get('msg_to_del'))
-    except: pass
+    try:
+        await message.delete()
+    except:
+        pass
+    try:
+        await bot.delete_message(user_id, state_data.get('msg_to_del'))
+    except:
+        pass
     await state.clear()
 
     async with Database() as db:
@@ -64,6 +70,18 @@ async def contact(message: Message, state: FSMContext, bot: Bot):
 
 @router.message(Command('send_6603'))
 async def send_custom(message: Message, bot: Bot):
+    photo1 = InputMediaPhoto(
+        media='',
+        caption='')
+    photo2 = InputMediaPhoto(
+        media='')
+    photo3 = InputMediaPhoto(
+        media='')
+    photo4 = InputMediaPhoto(
+        media='')
+    photo5 = InputMediaPhoto(
+        media='')
+
     await bot.send_message(chat_id=6008255128, text='Начал рассылку')
     async with Database() as db:
         users_list: List[Record] = await db.get_all_users()
@@ -71,20 +89,19 @@ async def send_custom(message: Message, bot: Bot):
         for user in users_list:
             user_id = user.get('user_id')
             try:
-                await bot.send_message(chat_id=user_id, text=UserMessages().custom_send(),
-                                       reply_markup=await UserKb().event_kb(326), disable_web_page_preview=True)
-                await B24().send_message_to_ol(user_id, 'Система',
-                                               'Отправлено сообщение-рассылка. Консультация.')
+                # await bot.send_message(chat_id=user_id, text=UserMessages().custom_send(),
+                #                        disable_web_page_preview=True)
+                await bot.send_media_group(chat_id=user_id,
+                                           media=[photo1, photo2, photo3, photo4, photo5])
                 success_counter += 1
                 await asyncio.sleep(0.5)
             except:
-                await db.set_bot_blocked(user_id, True)
                 fail_counter += 1
 
-        await bot.send_message(chat_id=6008255128, text=f"<b>Итоги рассылки:</b>\n\nВсего адресатов: {len(users_list)}\n"
-                                                        f"Доставлено успешно: {success_counter}\n"
-                                                        f"Не доставлено (вероятно заблокировали бота): {fail_counter}")
-
+        await bot.send_message(chat_id=6008255128,
+                               text=f"<b>Итоги рассылки:</b>\n\nВсего адресатов: {len(users_list)}\n"
+                                    f"Доставлено успешно: {success_counter}\n"
+                                    f"Не доставлено (вероятно заблокировали бота): {fail_counter}")
 
 @router.message(F.photo)
 async def return_photo_id(message: Message):
@@ -94,10 +111,13 @@ async def return_photo_id(message: Message):
 @router.callback_query(F.data == 'call_ask')
 async def ask_phone(callback: CallbackQuery, state: FSMContext):
     await state.set_state(User.state)
-    msg_to_del = await callback.message.answer(text=UserMessages().ask_phone, reply_markup=UserReplyKb().ask_contact_kb())
+    msg_to_del = await callback.message.answer(text=UserMessages().ask_phone,
+                                               reply_markup=UserReplyKb().ask_contact_kb())
     await state.update_data(msg_to_del=msg_to_del.message_id)
-    try: await callback.message.delete()
-    except: pass
+    try:
+        await callback.message.delete()
+    except:
+        pass
 
 
 @router.callback_query(F.data.startswith('calendar'))
@@ -109,8 +129,10 @@ async def calendar_from_cb(callback: CallbackQuery):
 
     if callback.data.endswith('mm'):
         await callback.message.answer(text=start_message, reply_markup=await UserKb().get_products_kb(user_id))
-        try: await callback.message.delete()
-        except: pass
+        try:
+            await callback.message.delete()
+        except:
+            pass
     else:
         await callback.message.edit_text(text=start_message, reply_markup=await UserKb().get_products_kb(user_id))
     await B24().send_message_to_ol(user_id, full_name, f'[B]Нажата кнопка[/B] [I]Расписание[/I]')
@@ -131,16 +153,21 @@ async def select_event(callback: CallbackQuery, callback_data: SelectEventCallba
         back_to_personal = True if callback_data.back_to_personal else False
         if callback_data.from_mm:
             await callback.message.answer(text=UserMessages().event_description(event_description),
-                                          reply_markup=await UserKb().event_kb(callback_data.product_id, back_to_personal))
-            try: await callback.message.delete()
-            except: pass
+                                          reply_markup=await UserKb().event_kb(callback_data.product_id,
+                                                                               back_to_personal))
+            try:
+                await callback.message.delete()
+            except:
+                pass
         else:
             await callback.message.edit_text(text=UserMessages().event_description(event_description),
-                                             reply_markup=await UserKb().event_kb(callback_data.product_id, back_to_personal))
+                                             reply_markup=await UserKb().event_kb(callback_data.product_id,
+                                                                                  back_to_personal))
 
         message_keyboard = callback.message.reply_markup.inline_keyboard
         button_text = ''.join([i[0].text for i in message_keyboard
-                               if i[0].callback_data.startswith(f'{SelectEventCallbackFactory.__prefix__}:{callback_data.product_id}')])
+                               if i[0].callback_data.startswith(
+                f'{SelectEventCallbackFactory.__prefix__}:{callback_data.product_id}')])
         await B24().send_message_to_ol(user_id, full_name, f'[B]Нажата кнопка[/B] [I]{button_text}[/I]')
 
         await db.add_button_count(user_id, button_text)
@@ -165,8 +192,10 @@ async def select_event(callback: CallbackQuery, callback_data: SelectEventCallba
 async def buy_event(callback: CallbackQuery, callback_data: BuyEventCallbackFactory, state: FSMContext, bot: Bot):
     state_data = await state.get_data()
     if state_data.get('msg_to_del'):
-        try: await bot.delete_message(callback.message.chat.id, state_data.get('msg_to_del'))
-        except Exception: pass
+        try:
+            await bot.delete_message(callback.message.chat.id, state_data.get('msg_to_del'))
+        except Exception:
+            pass
         await state.clear()
     user_id, full_name = callback.from_user.id, callback.from_user.full_name
     product_id = callback_data.product_id
@@ -217,7 +246,8 @@ async def buy_event(callback: CallbackQuery, callback_data: BuyEventCallbackFact
 
 
 @router.callback_query(BuyEventPayMethodFactory.filter())
-async def payment_by_method(callback: CallbackQuery, callback_data: BuyEventPayMethodFactory, bot: Bot, state: FSMContext):
+async def payment_by_method(callback: CallbackQuery, callback_data: BuyEventPayMethodFactory, bot: Bot,
+                            state: FSMContext):
     user_id = callback.from_user.id
 
     async with Database() as db:
@@ -238,16 +268,19 @@ async def payment_by_method(callback: CallbackQuery, callback_data: BuyEventPayM
         )
         return_msg = await callback.message.answer(text='Нажмите на кнопку ниже, чтобы выбрать другой способ оплаты 👇',
                                                    reply_markup=await UserKb().return_to_payment_methods(
-                                                    product_id=callback_data.product_id, with_calendar=False))
+                                                       product_id=callback_data.product_id, with_calendar=False))
         await state.set_state(User.state)
         await state.update_data(msg_to_del=invoice.message_id, cb_to_del=return_msg.message_id)
-        try: await callback.message.delete()
-        except Exception: pass
+        try:
+            await callback.message.delete()
+        except Exception:
+            pass
 
     if callback_data.method in ['blik', 'bank']:
         await callback.message.edit_text(
             text=UserMessages().other_payment(callback_data.deal_id, event_name, product_price, callback_data.method),
-            reply_markup=await UserKb().return_to_payment_methods(product_id=callback_data.product_id, with_calendar=True))
+            reply_markup=await UserKb().return_to_payment_methods(product_id=callback_data.product_id,
+                                                                  with_calendar=True))
 
 
 @router.pre_checkout_query()
@@ -281,12 +314,18 @@ async def successful_payment(message: Message, state: FSMContext, bot: Bot):
     await message.answer(text=UserMessages().successful_payment(payment_data, product_name),
                          reply_markup=await UserKb().return_to_calendar_kb())
 
-    try: await bot.delete_message(user_id, state_data.get('msg_to_del'))
-    except Exception: pass
-    try: await bot.delete_message(user_id, state_data.get('cb_to_del'))
-    except Exception: pass
-    try: await message.delete()
-    except Exception: pass
+    try:
+        await bot.delete_message(user_id, state_data.get('msg_to_del'))
+    except Exception:
+        pass
+    try:
+        await bot.delete_message(user_id, state_data.get('cb_to_del'))
+    except Exception:
+        pass
+    try:
+        await message.delete()
+    except Exception:
+        pass
 
     await state.clear()
 
@@ -300,12 +339,8 @@ async def successful_payment(message: Message, state: FSMContext, bot: Bot):
         await db.set_paid_deal(deal_id)
         await B24().update_deal_stage(deal_id, 'WON')
         await B24().send_message_to_ol(user_id, 'Система',
-                                       f'Произведена оплата:\nСумма: [B]{total_amount/100} {currency}[/B]\n'
+                                       f'Произведена оплата:\nСумма: [B]{total_amount / 100} {currency}[/B]\n'
                                        f'Сделка: [URL={deal_url}][B]ID {deal_id}[/B][/URL]')
         await B24().send_message_to_ol(user_id, 'Система',
                                        f'Пользователю отправлено подтверждение:\n\n'
                                        f'{UserMessages().successful_payment(payment_data, product_name)}')
-
-
-
-

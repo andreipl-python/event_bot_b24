@@ -241,9 +241,9 @@ class UserKb(InlineKeyboardBuilder):
         return self.as_markup()
 
     async def payment_methods_kb(self, product_id: int, deal_id: int) -> InlineKeyboardMarkup:
-        self.button(
-            text='💳 Visa/Mastercard',
-            callback_data=BuyEventPayMethodFactory(method='card', product_id=product_id, deal_id=deal_id))
+        # self.button(
+        #     text='💳 Visa/Mastercard',
+        #     callback_data=BuyEventPayMethodFactory(method='card', product_id=product_id, deal_id=deal_id))
         self.button(
             text='📲 Оплата BLIK',
             callback_data=BuyEventPayMethodFactory(method='blik', product_id=product_id, deal_id=deal_id))

@@ -1,31 +1,11 @@
 <?php
 	require_once (__DIR__.'/settings.php');
 
-	/**
-	 *  @version 1.36
-	 *  define:
-	 *      C_REST_WEB_HOOK_URL = 'https://rest-api.bitrix24.com/rest/1/doutwqkjxgc3mgc1/'  //url on creat Webhook
-	 *      or
-	 *      C_REST_CLIENT_ID = 'local.5c8bb1b0891cf2.87252039' //Application ID
-	 *      C_REST_CLIENT_SECRET = 'SakeVG5mbRdcQet45UUrt6q72AMTo7fkwXSO7Y5LYFYNCRsA6f'//Application key
-	 *
-	 *		C_REST_CURRENT_ENCODING = 'windows-1251'//set current encoding site if encoding unequal UTF-8 to use iconv()
-	 *      C_REST_BLOCK_LOG = true //turn off default logs
-	 *      C_REST_LOGS_DIR = __DIR__ .'/logs/' //directory path to save the log
-	 *      C_REST_LOG_TYPE_DUMP = true //logs save var_export for viewing convenience
-	 *      C_REST_IGNORE_SSL = true //turn off validate ssl by curl
-	 */
-
 	class CRest
 	{
 		const VERSION = '1.36';
-		const BATCH_COUNT    = 50;//count batch 1 query
-		const TYPE_TRANSPORT = 'json';// json or xml
-
-		/**
-		 * call where install application even url
-		 * only for rest application, not webhook
-		 */
+		const BATCH_COUNT    = 50;
+		const TYPE_TRANSPORT = 'json';
 
 		public static function installApp()
 		{
@@ -63,15 +43,6 @@
 			return $result;
 		}
 
-		/**
-		 * @var $arParams array
-		 * $arParams = [
-		 *      'method'    => 'some rest method',
-		 *      'params'    => []//array params of method
-		 * ];
-		 * @return mixed array|string|boolean curl-return or error
-		 *
-		 */
 		protected static function callCurl($arParams)
 		{
 			if(!function_exists('curl_init'))
@@ -213,14 +184,6 @@
 			];
 		}
 
-		/**
-		 * Generate a request for callCurl()
-		 *
-		 * @var $method string
-		 * @var $params array method params
-		 * @return mixed array|string|boolean curl-return or error
-		 */
-
 		public static function call($method, $params = [])
 		{
 			$arPost = [
@@ -236,28 +199,6 @@
 			return $result;
 		}
 
-		/**
-		 * @example $arData:
-		 * $arData = [
-		 *      'find_contact' => [
-		 *          'method' => 'crm.duplicate.findbycomm',
-		 *          'params' => [ "entity_type" => "CONTACT",  "type" => "EMAIL", "values" => array("info@bitrix24.com") ]
-		 *      ],
-		 *      'get_contact' => [
-		 *          'method' => 'crm.contact.get',
-		 *          'params' => [ "id" => '$result[find_contact][CONTACT][0]' ]
-		 *      ],
-		 *      'get_company' => [
-		 *          'method' => 'crm.company.get',
-		 *          'params' => [ "id" => '$result[get_contact][COMPANY_ID]', "select" => ["*"],]
-		 *      ]
-		 * ];
-		 *
-		 * @var $arData array
-		 * @var $halt   integer 0 or 1 stop batch on error
-		 * @return array
-		 *
-		 */
 
 		public static function callBatch($arData, $halt = 0)
 		{
@@ -298,13 +239,6 @@
 			return $arResult;
 		}
 
-		/**
-		 * Getting a new authorization and sending a request for the 2nd time
-		 *
-		 * @var $arParams array request when authorization error returned
-		 * @return array query result from $arParams
-		 *
-		 */
 
 		private static function GetNewAuth($arParams)
 		{
@@ -344,11 +278,6 @@
 			return $result;
 		}
 
-		/**
-		 * @var $arSettings array settings application
-		 * @var $isInstall  boolean true if install app by installApp()
-		 * @return boolean
-		 */
 
 		private static function setAppSettings($arSettings, $isInstall = false)
 		{
@@ -364,10 +293,6 @@
 			}
 			return $return;
 		}
-
-		/**
-		 * @return mixed setting application for query
-		 */
 
 		private static function getAppSettings()
 		{
@@ -398,12 +323,6 @@
 			return ($isCurrData) ? $arData : false;
 		}
 
-		/**
-		 * Can overridden this method to change the data storage location.
-		 *
-		 * @return array setting for getAppSettings()
-		 */
-
 		protected static function getSettingData()
 		{
 			$return = [];
@@ -422,12 +341,6 @@
 			return $return;
 		}
 
-		/**
-		 * @var $data mixed
-		 * @var $encoding boolean true - encoding to utf8, false - decoding
-		 *
-		 * @return string json_encode with encoding
-		 */
 		protected static function changeEncoding($data, $encoding = true)
 		{
 			if(is_array($data))
@@ -454,12 +367,6 @@
 			return $result;
 		}
 
-		/**
-		 * @var $data mixed
-		 * @var $debag boolean
-		 *
-		 * @return string json_encode with encoding
-		 */
 		protected static function wrapData($data, $debag = false)
 		{
 			if(defined('C_REST_CURRENT_ENCODING'))
@@ -483,12 +390,6 @@
 			return $return;
 		}
 
-		/**
-		 * @var $data mixed
-		 * @var $debag boolean
-		 *
-		 * @return string json_decode with encoding
-		 */
 		protected static function expandData($data)
 		{
 			$return = json_decode($data, true);
@@ -499,25 +400,12 @@
 			return $return;
 		}
 
-		/**
-		 * Can overridden this method to change the data storage location.
-		 *
-		 * @var $arSettings array settings application
-		 * @return boolean is successes save data for setSettingData()
-		 */
 
 		protected static function setSettingData($arSettings)
 		{
 			return  (boolean)file_put_contents(__DIR__ . '/settings.json', static::wrapData($arSettings));
 		}
 
-		/**
-		 * Can overridden this method to change the log data storage location.
-		 *
-		 * @var $arData array of logs data
-		 * @var $type   string to more identification log data
-		 * @return boolean is successes save log data
-		 */
 
 		public static function setLog($arData, $type = '')
 		{
@@ -560,26 +448,19 @@
 			return $return;
 		}
 
-		/**
-		 * check minimal settings server to work CRest
-		 * @var $print boolean
-		 * @return array of errors
-		 */
 		public static function checkServer($print = true)
 		{
 		    $return = [];
 
-		    // check curl lib install
 		    if (!function_exists('curl_init')) {
 			$return['curl_error'] = 'Need to install curl lib.';
 		    }
 
-		    // create setting file
 		    file_put_contents(__DIR__ . '/settings_check.json', static::wrapData(['test' => 'data']));
 		    if (!file_exists(__DIR__ . '/settings_check.json')) {
 			$return['setting_creat_error'] = 'Check permission! Recommended: folders: 775, files: 664';
 		    } else {
-			chmod(__DIR__ . '/settings_check.json', 0664); // Установите правильные права доступа для файла
+			chmod(__DIR__ . '/settings_check.json', 0664);
 		    }
 		    unlink(__DIR__ . '/settings_check.json');
 
@@ -592,7 +473,7 @@
 			if (!file_exists($path . 'test.txt')) {
 			    $return['logs_file_creat_error'] = 'Check permission! Recommended: folders: 775, files: 664';
 			} else {
-			    chmod($path . 'test.txt', 0664); // Установите правильные права доступа для файла
+			    chmod($path . 'test.txt', 0664);
 			}
 			unlink($path . 'test.txt');
 		    }

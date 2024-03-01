@@ -1,7 +1,6 @@
 <?php
 require_once('function.php');
 $handlerUrl = 'https://tb24.chickenkiller.com/handler.php';
-//creat dir for save chats (recommend using database)
 @mkdir(__DIR__ . '/chats/', 0775, true);
 if(!file_exists(__DIR__ . '/chats/'))
 {

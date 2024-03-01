@@ -10,7 +10,7 @@ from sql import Database
 router = Router()
 
 photo_test = 'AgACAgIAAxkBAAIEG2U7oqxY5LreGS1owTJpvSxTEFpLAALL1TEbJYXYSU0w3y5-IE2JAQADAgADeQADMAQ'
-photo_live = 'AgACAgIAAxkBAAIIfmVMrNfPfg8UP281IccuOSJ_eBdVAAIzyTEbw6loSnTyRaEiyQkYAQADAgADeQADMwQ'
+photo_live = 'AgACAgIAAxkBAAILFmVtBr7N6HJGpK4PivHUyXcbxDuBAAL-1jEbcNNpSzWTmIkiTLIGAQADAgADeQADMwQ'
 
 
 @router.message(CommandStart())
